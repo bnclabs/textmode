@@ -1,0 +1,17 @@
+* Experiment with `setscrreg`, `wsetscrreg` and `scrollok` functions from
+  ncurses. Check their man pages for more information.
+
+* ncdrv.c should be compiled twice generating, `ncdrv.so` and `ncdrvw.so`. The
+  later is being built with ncursesw, wide-character version for unicode
+  support. This had to be done via rebar(?).
+
+  on the erlang side ncurses interface module must load the correct version of
+  the library based on configuration and provide the `_wch` or `wstr` variant
+  of APIs.
+
+* Why addchstr variant functions are not working ?
+
+* in nc_srv and color related APIs manager color based on global limits COLORS
+  and COLOR_PAIRS.
+
+vim: filetype=rst:

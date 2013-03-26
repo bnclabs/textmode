@@ -1,0 +1,38 @@
+escape character - 27
+rubout character - 127
+rubout word      - ^w
+rubout line      - ^u
+app. suspend     - ^z
+tabstop          - 9
+    Refer to Vim :help tabstop
+
+interrupt code   - ^c
+    The interrupt code (^C) causes complex operations such as iterations,
+    searches, and macro executions to terminate at the end of the current
+    command, and return xTECO engine to command input mode. This essentially
+    means complex operations are executed as separate process.
+
+ncurses-terminal layout:
+    * tab-line, buffer-view, status-line, message-line.
+    * status line and message line share the same line which is the last line
+      in the ncurses window.
+
+Command format:
+
+    num,num command-name *args suffix
+
+jumping around:
+
+    CTRL-] CTRL-o CTRL-i
+
+machine
+
+node
+
+buffer
+
+tab
+
+
+
+terminal
