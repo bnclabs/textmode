@@ -11,7 +11,10 @@
 
 * Why addchstr variant functions are not working ?
 
-* in nc_srv and color related APIs manager color based on global limits COLORS
+* in ncdrv and color related APIs manager color based on global limits COLORS
   and COLOR_PAIRS.
+
+* gen_server:start_link does not fail with error messages. It passes the error
+  to supervisor that simly shutsdown.
 
 vim: filetype=rst:

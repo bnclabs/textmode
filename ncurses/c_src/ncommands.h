@@ -55,17 +55,17 @@
 #define INNSTR      74
 #define INCHNSTR    75
 
-#define ENDWIN      100
-#define INITSCR     101
-#define MOVE        109
-#define CURS_SET    112
+#define INITSCR     100
+#define ENDWIN      101
+#define NEWWIN      102
+#define DELWIN      103
+#define MOVE        104
+#define CURS_SET    105
+#define HLINE       110
+#define VLINE       111
+
 #define NL          119
 #define NONL        120
 #define SCROLLOK    121
-#define NEWWIN      124
-#define DELWIN      125
-#define WMOVE       126
-#define WHLINE      132
-#define WVLINE      133
 #define WBORDER     134
 #define BOX         135

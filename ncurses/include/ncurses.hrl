@@ -3,16 +3,16 @@
 -define(A_CHARTEXT,   16#FF).
 -define(A_COLOR,      16#FF00).
 
-% Boolean
+% coolean
 -define(TRUE, 1).
 -define(FALSE, 0).
 
-% Cursor visibility
+% cursor visibility
 -define(CURS_INVISIBLE, 0).
 -define(CURS_NORMAL, 1).
 -define(CURS_VERY_VISIBLE, 2).
 
-% Color
+% color
 -define(COLOR_BLACK,    0).
 -define(COLOR_RED,      1).
 -define(COLOR_GREEN,    2).
@@ -89,7 +89,7 @@
 
 -define(COLOR_PAIR(C), (C bsl 8)).
 
-% Attribute
+% attribute
 -define(A_NORMAL,       0).
 -define(A_STANDOUT,     (1 bsl (8 + 8))).
 -define(A_UNDERLINE,    (1 bsl (8 + 9))).
@@ -103,41 +103,42 @@
 
 -define(W_STDSCR, 0).
 
-% Border characters
--define(ACS_DIAMOND, 4194400).
--define(ACS_CKBOARD, 4194401).
--define(ACS_DEGREE, 4194406).
--define(ACS_PLMINUS, 4194407).
--define(ACS_BOARD, 4194408).
--define(ACS_LANTERN, 4194409).
--define(ACS_LRCORNER, 4194410).
--define(ACS_URCORNER, 4194411).
--define(ACS_ULCORNER, 4194412).
--define(ACS_LLCORNER, 4194413).
--define(ACS_PLUS, 4194414).
--define(ACS_S1, 4194415).
--define(ACS_S3, 4194416).
--define(ACS_HLINE, 4194417).
--define(ACS_S7, 4194418).
--define(ACS_S9, 4194419).
--define(ACS_LTEE, 4194420).
--define(ACS_RTEE, 4194421).
--define(ACS_BTEE, 4194422).
--define(ACS_TTEE, 4194423).
--define(ACS_VLINE, 4194424).
--define(ACS_LEQUAL, 4194425).
--define(ACS_GEQUAL, 4194426).
--define(ACS_PI, 4194427).
--define(ACS_NEQUAL, 4194428).
--define(ACS_STERLING, 4194429).
--define(ACS_BULLET, 4194430).
--define(ACS_RARROW, 4194347).
--define(ACS_LARROW, 4194348).
--define(ACS_UARROW, 4194349).
--define(ACS_DARROW, 4194350).
--define(ACS_BLOCK, 4194352).
+% Alternate character set
+-define(ACS_LRCORNER,  16#40006a).
+-define(ACS_URCORNER,  16#40006b).
+-define(ACS_ULCORNER,  16#40006c).
+-define(ACS_LLCORNER,  16#40006d).
+-define(ACS_HLINE,     16#400071).
+-define(ACS_LTEE,      16#400074).
+-define(ACS_RTEE,      16#400075).
+-define(ACS_BTEE,      16#400076).
+-define(ACS_TTEE,      16#400077).
+-define(ACS_VLINE,     16#400078).
+-define(ACS_PLUS,      16#40006e).
 
-% Key codes
+-define(ACS_DIAMOND,   4194400).
+-define(ACS_CKBOARD,   4194401).
+-define(ACS_DEGREE,    4194406).
+-define(ACS_PLMINUS,   4194407).
+-define(ACS_BOARD,     4194408).
+-define(ACS_LANTERN,   4194409).
+-define(ACS_S1,        4194415).
+-define(ACS_S3,        4194416).
+-define(ACS_S7,        4194418).
+-define(ACS_S9,        4194419).
+-define(ACS_LEQUAL,    4194425).
+-define(ACS_GEQUAL,    4194426).
+-define(ACS_PI,        4194427).
+-define(ACS_NEQUAL,    4194428).
+-define(ACS_STERLING,  4194429).
+-define(ACS_BULLET,    4194430).
+-define(ACS_RARROW,    4194347).
+-define(ACS_LARROW,    4194348).
+-define(ACS_UARROW,    4194349).
+-define(ACS_DARROW,    4194350).
+-define(ACS_BLOCK,     4194352).
+
+% key codes
 -define(KEY_TAB, 9).
 -define(KEY_ESC, 27).
 -define(KEY_DOWN, 258).
@@ -151,3 +152,32 @@
 -define(KEY_PGDOWN, 338).
 -define(KEY_PGUP, 339).
 -define(KEY_END, 360).
+
+% NCurses screen state
+-record( screen, {
+            port,
+            getch,
+            app,
+            win,
+            wdom
+         }).
+
+% window description and state.
+-record( charevent, {
+            char
+         }).
+
+% buffer description and state.
+-record( buftbl, {
+         }).
+
+% buffer description and state.
+-record( bufline, {
+         }).
+
+% token description
+-record( toktbl, {
+         }).
+
+-record( tokline, { column, attr
+         }).

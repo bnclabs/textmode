@@ -127,7 +127,6 @@ void do_has_key(state *st);
 void do_inch(state *st);
 void do_innstr(state *st);
 
-void do_move(state *st);
 void do_curs_set(state *st);
 void do_curs_set(state *st);
 void do_wattron(state *st);
@@ -138,8 +137,8 @@ void do_scrollok(state *st);
 void do_newwin(state *st);
 void do_delwin(state *st);
 void do_wmove(state *st);
-void do_whline(state *st);
-void do_wvline(state *st);
+void do_hline(state *st);
+void do_vline(state *st);
 void do_wborder(state *st);
 void do_box(state *st);
 
@@ -238,16 +237,15 @@ static ErlDrvSSizeT control(ErlDrvData drvstate, unsigned int command,
   case INCH: do_inch(st); break;
   case INNSTR: do_innstr(st); break;
 
-  case MOVE: do_move(st); break;
+  case NEWWIN: do_newwin(st); break;
+  case DELWIN: do_delwin(st); break;
+  case MOVE: do_wmove(st); break;
   case CURS_SET: do_curs_set(st); break;
+  case HLINE: do_hline(st); break;
+  case VLINE: do_vline(st); break;
   case NL: do_nl(st); break;
   case NONL: do_nonl(st); break;
   case SCROLLOK: do_scrollok(st); break;
-  case NEWWIN: do_newwin(st); break;
-  case DELWIN: do_delwin(st); break;
-  case WMOVE: do_wmove(st); break;
-  case WHLINE: do_whline(st); break;
-  case WVLINE: do_wvline(st); break;
   case WBORDER: do_wborder(st); break;
   case BOX: do_box(st); break;
   default: break;
@@ -803,14 +801,16 @@ void do_inchnstr(state *st) {
   }
 }
 
-void do_move(state *st) {
+void do_wmove(state *st) {
   int arity;
-  long y, x;
+  long slot, y, x;
   ei_decode_tuple_header(st->args, &(st->index), &arity);
+  ei_decode_long(st->args, &(st->index), &slot);
   ei_decode_long(st->args, &(st->index), &y);
   ei_decode_long(st->args, &(st->index), &x);
-  encode_ok_reply(st, move((int)y, (int)x));
+  encode_ok_reply(st, wmove(st->win[slot], (int)y, (int)x));
 }
+
 
 void do_curs_set(state *st) {
   long flag;
@@ -886,34 +886,42 @@ void do_delwin(state *st) {
   }
 }
 
-void do_wmove(state *st) {
+void do_hline(state *st) {
   int arity;
-  long slot, y, x;
+  long slot, ch, y, x, max;
   ei_decode_tuple_header(st->args, &(st->index), &arity);
   ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &y);
-  ei_decode_long(st->args, &(st->index), &x);
-  encode_ok_reply(st, wmove(st->win[slot], (int)y, (int)x));
+  if( arity==3 ) {
+    ei_decode_long(st->args, &(st->index), &ch);
+    ei_decode_long(st->args, &(st->index), &max);
+    encode_ok_reply(st, whline(st->win[slot], (chtype)ch, (int)max));
+  } else if ( arity==5 ) {
+    ei_decode_long(st->args, &(st->index), &y);
+    ei_decode_long(st->args, &(st->index), &x);
+    ei_decode_long(st->args, &(st->index), &ch);
+    ei_decode_long(st->args, &(st->index), &max);
+    encode_ok_reply(st,
+        mvwhline(st->win[slot], (int)y, (int)x, (chtype)ch, (int)max));
+  }
 }
 
-void do_whline(state *st) {
+void do_vline(state *st) {
   int arity;
-  long slot, ch, max;
+  long slot, ch, y, x, max;
   ei_decode_tuple_header(st->args, &(st->index), &arity);
   ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &ch);
-  ei_decode_long(st->args, &(st->index), &max);
-  encode_ok_reply(st, whline(st->win[slot], (chtype)ch, (int)max));
-}
-
-void do_wvline(state *st) {
-  int arity;
-  long slot, ch, max;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &ch);
-  ei_decode_long(st->args, &(st->index), &max);
-  encode_ok_reply(st, wvline(st->win[slot], (chtype)ch, (int)max));
+  if( arity==3 ) {
+    ei_decode_long(st->args, &(st->index), &ch);
+    ei_decode_long(st->args, &(st->index), &max);
+    encode_ok_reply(st, wvline(st->win[slot], (chtype)ch, (int)max));
+  } else if( arity==5 ) {
+    ei_decode_long(st->args, &(st->index), &y);
+    ei_decode_long(st->args, &(st->index), &x);
+    ei_decode_long(st->args, &(st->index), &ch);
+    ei_decode_long(st->args, &(st->index), &max);
+    encode_ok_reply(st,
+        mvwvline(st->win[slot], (int)y, (int)x, (chtype)ch, (int)max));
+  }
 }
 
 void do_wborder(state *st) {
