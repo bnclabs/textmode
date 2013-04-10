@@ -416,22 +416,23 @@ init_pairs() ->
 init(_Args) ->
     process_flag(trap_exit, true),
     case load_driver() of
-	ok ->
-	    Port = erlang:open_port({spawn, "ncdrv"}, [binary]),
-	    ok = do_call(Port, ?INITSCR),
-	    ok = do_call(Port, ?START_COLOR),
-	    ok = do_call(Port, ?WERASE, 0),
-	    ok = do_call(Port, ?WREFRESH, 0),
-	    {ok, #screen{ port = Port }};
-	{error, ErrorCode} ->
-	    exit({driver_error, erl_ddll:format_error(ErrorCode)})
+        ok ->
+            Port = erlang:open_port({spawn, "ncdrv"}, [binary]),
+            ok = do_call(Port, ?INITSCR),
+            ok = do_call(Port, ?START_COLOR),
+            ok = do_call(Port, ?WERASE, 0),
+            ok = do_call(Port, ?WREFRESH, 0),
+            {ok, #screen{ port = Port }};
+
+        {error, ErrorCode} ->
+            exit({driver_error, erl_ddll:format_error(ErrorCode)})
     end.
 
 
 handle_call({curses, App, ?GETCH, _}, From, #screen{getch=undefined}=State) ->
     case State#screen.app of
         App -> {noreply, State#screen{getch=From}};
-        _ -> {reply, busy, State}
+        _ -> {reply, false_context, State}
     end;
 
 handle_call({curses, _App, ?GETCH, _}, _From, State) ->
@@ -443,17 +444,18 @@ handle_call({curses, App, Cmd, Args}, _From, State) ->
         _ -> {reply, false_context, State}
     end;
 
-handle_call(win, _From, #screen{win=Win}=State) ->
-    {reply, Win, State};
-
-handle_call({win, Win}, _From, State) ->
-    {reply, Win, State#screen{win=Win}};
-
 handle_call(app, _From, #screen{app=App}=State) ->
     {reply, App, State};
 
 handle_call({app, App}, _From, State) ->
     {reply, App, State#screen{app=App}};
+
+
+handle_call(win, _From, #screen{win=Win}=State) ->
+    {reply, Win, State};
+
+handle_call({win, Win}, _From, State) ->
+    {reply, Win, State#screen{win=Win}};
 
 handle_call(wdom, _, #screen{wdom=WDom}=State) ->
     {reply, WDom, State};

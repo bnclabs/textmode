@@ -1,3 +1,12 @@
 #!/bin/bash
 
-erl -boot start_sasl -noinput -smp disable -s sudoku_curses start
+CONFIGDIR=$HOME/.textmode
+mkdir -p $CONFIGDIR/logs
+mkdir -p $CONFIGDIR/sudoku
+
+erl -noinput -smp disable \
+    -sasl sasl_error_logger "{file, \"$CONFIGDIR/logs/sudoku.log\"}" \
+    -boot start_sasl \
+    -s sudoku_curses start
+
+#vim :filetype=shell:
