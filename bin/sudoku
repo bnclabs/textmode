@@ -1,0 +1,3 @@
+#!/bin/bash
+
+erl -boot start_sasl -noinput -smp disable -s sudoku_curses start

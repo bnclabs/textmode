@@ -8,45 +8,45 @@
 %%
 countdown() ->
     application:start(ncurses),
-    nc_srv:cbreak(),
-    nc_srv:noecho(),
-    nc_srv:curs_set(?CURS_INVISIBLE),
-    nc_srv:move(1, 1),
-    Flag = nc_srv:has_colors(),
-    nc_srv:addstr(io_lib:format("Has color: ~p",[Flag])),
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    ncdrv:curs_set(?CURS_INVISIBLE),
+    ncdrv:move(1, 1),
+    Flag = ncdrv:has_colors(),
+    ncdrv:addstr(io_lib:format("Has color: ~p",[Flag])),
     print_colors(Flag),
-    nc_srv:move(10, 10),
-    nc_srv:addstr("Countdown: "),
-    nc_srv:refresh(),
+    ncdrv:move(10, 10),
+    ncdrv:addstr("Countdown: "),
+    ncdrv:refresh(),
     count_it_down(10),
-    nc_srv:curs_set(?CURS_NORMAL),
+    ncdrv:curs_set(?CURS_NORMAL),
     timer:sleep(2000),
     application:stop(ncurses).
 
 count_it_down(S) when S =< 0 ->
-    nc_srv:move(10, 22),
-    nc_srv:addstr("BOOOOM!"),
-    nc_srv:refresh();
+    ncdrv:move(10, 22),
+    ncdrv:addstr("BOOOOM!"),
+    ncdrv:refresh();
 count_it_down(S) ->
-    nc_srv:move(10+S, 22),
-    {X, Y} = nc_srv:getyx(),
-    {MX, MY} = nc_srv:getmaxyx(),
-    nc_srv:addstr(io_lib:format("~p",[S])),
-    nc_srv:move(22,22),
-    nc_srv:addstr(io_lib:format("~p:~p (~p:~p)",[X,Y,MX,MY])),
-    nc_srv:refresh(),
+    ncdrv:move(10+S, 22),
+    {X, Y} = ncdrv:getyx(),
+    {MX, MY} = ncdrv:getmaxyx(),
+    ncdrv:addstr(io_lib:format("~p",[S])),
+    ncdrv:move(22,22),
+    ncdrv:addstr(io_lib:format("~p:~p (~p:~p)",[X,Y,MX,MY])),
+    ncdrv:refresh(),
     timer:sleep(1000),
     count_it_down(S-1).
 
 print_colors(false) -> ok;
 print_colors(true) ->
-    nc_srv:start_color(),
-    nc_srv:init_pair(1, ?COLOR_RED, ?COLOR_BLACK),
-    nc_srv:attron(?A_BOLD bor ?COLOR_PAIR(1)),
-    nc_srv:move(2,1),
-    nc_srv:addstr("Colored!"),
-    nc_srv:refresh(),
-    nc_srv:attroff(?A_BOLD bor ?COLOR_PAIR(1)),
+    ncdrv:start_color(),
+    ncdrv:init_pair(1, ?COLOR_RED, ?COLOR_BLACK),
+    ncdrv:attron(?A_BOLD bor ?COLOR_PAIR(1)),
+    ncdrv:move(2,1),
+    ncdrv:addstr("Colored!"),
+    ncdrv:refresh(),
+    ncdrv:attroff(?A_BOLD bor ?COLOR_PAIR(1)),
     ok.
 
 %%
@@ -54,40 +54,40 @@ print_colors(true) ->
 %%
 simple() ->
     application:start(ncurses),
-    ok = nc_srv:nocbreak(),
-    ok = nc_srv:cbreak(),
-    ok = nc_srv:echo(),
-    ok = nc_srv:noecho(),
-    ok = nc_srv:curs_set(?CURS_INVISIBLE),
-    ok = nc_srv:move(7, 10),
-    ok = nc_srv:addch(45),
-    ok = nc_srv:addch(45),
-    ok = nc_srv:move(7, 12),
-    ok = nc_srv:addstr(" Information ----"),
-    ok = nc_srv:move(8, 10),
-    {Row, Col} = nc_srv:getyx(),
-    {MRow, MCol} = nc_srv:getmaxyx(),
-    ok = nc_srv:addstr(io_lib:format("Row:~p Col:~p MaxRow:~p MaxCol:~p",
+    ok = ncdrv:nocbreak(),
+    ok = ncdrv:cbreak(),
+    ok = ncdrv:echo(),
+    ok = ncdrv:noecho(),
+    ok = ncdrv:curs_set(?CURS_INVISIBLE),
+    ok = ncdrv:move(7, 10),
+    ok = ncdrv:addch(45),
+    ok = ncdrv:addch(45),
+    ok = ncdrv:move(7, 12),
+    ok = ncdrv:addstr(" Information ----"),
+    ok = ncdrv:move(8, 10),
+    {Row, Col} = ncdrv:getyx(),
+    {MRow, MCol} = ncdrv:getmaxyx(),
+    ok = ncdrv:addstr(io_lib:format("Row:~p Col:~p MaxRow:~p MaxCol:~p",
 				    [Row,Col,MRow,MCol])),
-    case nc_srv:has_colors() of
+    case ncdrv:has_colors() of
 	true ->
-	    nc_srv:start_color(),
-	    ok = nc_srv:init_pair(1, ?COLOR_BLUE, ?COLOR_WHITE),
-	    ok = nc_srv:init_pair(2, ?COLOR_GREEN, ?COLOR_YELLOW), 
-	    nc_srv:move(9, 10),
-	    nc_srv:attron(?COLOR_PAIR(1) bor ?A_BOLD bor ?A_UNDERLINE),
-	    nc_srv:addstr(" Has Colors! "),
-	    nc_srv:attron(?COLOR_PAIR(2)),
-	    nc_srv:addstr(" Yes!! "),
-	    nc_srv:attroff(?COLOR_PAIR(1) bor ?COLOR_PAIR(2) bor ?A_BOLD bor ?A_UNDERLINE);
+	    ncdrv:start_color(),
+	    ok = ncdrv:init_pair(1, ?COLOR_BLUE, ?COLOR_WHITE),
+	    ok = ncdrv:init_pair(2, ?COLOR_GREEN, ?COLOR_YELLOW), 
+	    ncdrv:move(9, 10),
+	    ncdrv:attron(?COLOR_PAIR(1) bor ?A_BOLD bor ?A_UNDERLINE),
+	    ncdrv:addstr(" Has Colors! "),
+	    ncdrv:attron(?COLOR_PAIR(2)),
+	    ncdrv:addstr(" Yes!! "),
+	    ncdrv:attroff(?COLOR_PAIR(1) bor ?COLOR_PAIR(2) bor ?A_BOLD bor ?A_UNDERLINE);
 	false ->
-	    nc_srv:move(9, 10),
-	    nc_srv:addstr(" No colors :( ")
+	    ncdrv:move(9, 10),
+	    ncdrv:addstr(" No colors :( ")
     end,		     
-    nc_srv:addch($!),
-    ok = nc_srv:refresh(),
+    ncdrv:addch($!),
+    ok = ncdrv:refresh(),
     timer:sleep(5000),
-    nc_srv:curs_set(?CURS_NORMAL),
+    ncdrv:curs_set(?CURS_NORMAL),
     application:stop(ncurses).
 
 %%
@@ -95,32 +95,32 @@ simple() ->
 %%
 colors() ->
     application:start(ncurses),
-    ok = nc_srv:cbreak(),
-    ok = nc_srv:noecho(),
-    ok = nc_srv:curs_set(?CURS_INVISIBLE),
-    ok = nc_srv:start_color(),
-    ok = nc_srv:init_pair(1, ?COLOR_BLACK, ?COLOR_RED),
-    ok = nc_srv:init_pair(2, ?COLOR_BLACK, ?COLOR_GREEN),
-    ok = nc_srv:init_pair(3, ?COLOR_BLACK, ?COLOR_YELLOW),
-    ok = nc_srv:init_pair(4, ?COLOR_BLACK, ?COLOR_BLUE),
-    ok = nc_srv:init_pair(5, ?COLOR_BLACK, ?COLOR_MAGENTA),
-    ok = nc_srv:init_pair(6, ?COLOR_BLACK, ?COLOR_CYAN),
-    ok = nc_srv:init_pair(7, ?COLOR_BLACK, ?COLOR_WHITE),
-    ok = nc_srv:init_pair(8, ?COLOR_BLACK, ?COLOR_BLACK),
+    ok = ncdrv:cbreak(),
+    ok = ncdrv:noecho(),
+    ok = ncdrv:curs_set(?CURS_INVISIBLE),
+    ok = ncdrv:start_color(),
+    ok = ncdrv:init_pair(1, ?COLOR_BLACK, ?COLOR_RED),
+    ok = ncdrv:init_pair(2, ?COLOR_BLACK, ?COLOR_GREEN),
+    ok = ncdrv:init_pair(3, ?COLOR_BLACK, ?COLOR_YELLOW),
+    ok = ncdrv:init_pair(4, ?COLOR_BLACK, ?COLOR_BLUE),
+    ok = ncdrv:init_pair(5, ?COLOR_BLACK, ?COLOR_MAGENTA),
+    ok = ncdrv:init_pair(6, ?COLOR_BLACK, ?COLOR_CYAN),
+    ok = ncdrv:init_pair(7, ?COLOR_BLACK, ?COLOR_WHITE),
+    ok = ncdrv:init_pair(8, ?COLOR_BLACK, ?COLOR_BLACK),
     {A, B, C} = erlang:now(),
     random:seed(A, B, C),
-    {MaxRow, MaxCol} = nc_srv:getmaxyx(),
-    nc_srv:move(10,10),
-    nc_srv:addstr(io_lib:format("Max Row: ~p, Max Col: ~p",[MaxRow, MaxCol])),
-    nc_srv:move(0, 0),
-    nc_srv:addch($@),
-    nc_srv:move(MaxRow-1, 0),
-    nc_srv:addch($@),
-    nc_srv:move(0, MaxCol-1),
-    nc_srv:addch($@),
-    nc_srv:move(MaxRow-1, MaxCol-1),
-    nc_srv:addch($@),
-    nc_srv:refresh(),
+    {MaxRow, MaxCol} = ncdrv:getmaxyx(),
+    ncdrv:move(10,10),
+    ncdrv:addstr(io_lib:format("Max Row: ~p, Max Col: ~p",[MaxRow, MaxCol])),
+    ncdrv:move(0, 0),
+    ncdrv:addch($@),
+    ncdrv:move(MaxRow-1, 0),
+    ncdrv:addch($@),
+    ncdrv:move(0, MaxCol-1),
+    ncdrv:addch($@),
+    ncdrv:move(MaxRow-1, MaxCol-1),
+    ncdrv:addch($@),
+    ncdrv:refresh(),
     timer:sleep(2000),
     do_colors(MaxRow, MaxCol, 2000),
     application:stop(ncurses).
@@ -128,7 +128,7 @@ colors() ->
 do_colors(_,_,0) -> ok;
 do_colors(MR,MC,N) ->
     ch_colors(MR,MC,1000),
-    nc_srv:refresh(),
+    ncdrv:refresh(),
     timer:sleep(100),
     do_colors(MR, MC, N-1).
 
@@ -137,10 +137,10 @@ ch_colors(MR, MC, N) ->
     R = random:uniform(MR)-1,
     C = random:uniform(MC)-1,
     CN = random:uniform(8),
-    nc_srv:attron(?COLOR_PAIR(CN)),
-    nc_srv:move(R, C),
-    nc_srv:addch($ ),
-    nc_srv:move(R, C),
+    ncdrv:attron(?COLOR_PAIR(CN)),
+    ncdrv:move(R, C),
+    ncdrv:addch($ ),
+    ncdrv:move(R, C),
     ch_colors(MR, MC, N-1).
 
 %%
@@ -148,11 +148,11 @@ ch_colors(MR, MC, N) ->
 %% 
 pos(Y, X) ->
     application:start(ncurses),
-    ok = nc_srv:cbreak(),
-    ok = nc_srv:curs_set(?CURS_INVISIBLE),
-    nc_srv:move(Y, X),
-    nc_srv:addstr("@"),
-    nc_srv:refresh(),
+    ok = ncdrv:cbreak(),
+    ok = ncdrv:curs_set(?CURS_INVISIBLE),
+    ncdrv:move(Y, X),
+    ncdrv:addstr("@"),
+    ncdrv:refresh(),
     timer:sleep(2000),
     application:stop(ncurses).
 
@@ -161,31 +161,31 @@ pos(Y, X) ->
 %%
 input() ->
     application:start(ncurses),
-    ok = nc_srv:cbreak(),
-    ok = nc_srv:noecho(),
-    ok = nc_srv:curs_set(?CURS_INVISIBLE),
-    ok = nc_srv:keypad(?W_STDSCR, true),
+    ok = ncdrv:cbreak(),
+    ok = ncdrv:noecho(),
+    ok = ncdrv:curs_set(?CURS_INVISIBLE),
+    ok = ncdrv:keypad(?W_STDSCR, true),
     spawn_link(?MODULE, input_counter, [0]),
-    nc_srv:addstr(9, 10, "Enter:    "),
-    nc_srv:refresh(),
+    ncdrv:addstr(9, 10, "Enter:    "),
+    ncdrv:refresh(),
     input_reader().
 
 input_reader() ->
-    P = nc_srv:getch(),
+    P = ncdrv:getch(),
     case P of
 	$q ->
 	    application:stop(ncurses);
 	?KEY_F(1) -> 
 	    halt();
 	_ ->
-	    nc_srv:addstr(9, 17, io_lib:format("~p  ",[P])),
-	    nc_srv:refresh(),
+	    ncdrv:addstr(9, 17, io_lib:format("~p  ",[P])),
+	    ncdrv:refresh(),
 	    input_reader()
     end.
 
 input_counter(N) ->
-    nc_srv:addstr(10, 10, io_lib:format("# ~p",[N])),
-    nc_srv:refresh(),
+    ncdrv:addstr(10, 10, io_lib:format("# ~p",[N])),
+    ncdrv:refresh(),
     timer:sleep(100),
     input_counter(N+1).
 
@@ -194,14 +194,14 @@ input_counter(N) ->
 %%
 cursmove() ->
     application:start(ncurses),
-    nc_srv:cbreak(),
-    nc_srv:noecho(),
-    nc_srv:curs_set(?CURS_INVISIBLE),
-    nc_srv:keypad(?W_STDSCR, true),
-    nc_srv:addch(10, 10, $@),
-    nc_srv:move(10,10),
-    nc_srv:refresh(),
-    moveloop(nc_srv:getch()).
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    ncdrv:curs_set(?CURS_INVISIBLE),
+    ncdrv:keypad(?W_STDSCR, true),
+    ncdrv:addch(10, 10, $@),
+    ncdrv:move(10,10),
+    ncdrv:refresh(),
+    moveloop(ncdrv:getch()).
 moveloop(K) when K == ?KEY_F(1) ->
     halt();
 moveloop(?KEY_ESC) ->
@@ -214,15 +214,15 @@ moveloop(C) ->
 	?KEY_LEFT -> mv(0, -1);
 	_ -> ok
     end,
-    nc_srv:refresh(),
-    moveloop(nc_srv:getch()).
+    ncdrv:refresh(),
+    moveloop(ncdrv:getch()).
 
 mv(OffsetY, OffsetX) ->
-    {CY, CX} = nc_srv:getyx(),
+    {CY, CX} = ncdrv:getyx(),
     FinalY = CY+(OffsetY),
     FinalX = CX+(OffsetX),
-    nc_srv:addch(FinalY,FinalX,$@),
-    nc_srv:move(FinalY, FinalX).
+    ncdrv:addch(FinalY,FinalX,$@),
+    ncdrv:move(FinalY, FinalX).
 
 %%
 %% helloworld - bounce "Hello World!" on the end of the screen
@@ -231,19 +231,19 @@ helloworld() ->
     %% Start application
     application:start(ncurses),
     %% Set attributes
-    nc_srv:cbreak(),
-    nc_srv:noecho(),
-    nc_srv:curs_set(?CURS_INVISIBLE),
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    ncdrv:curs_set(?CURS_INVISIBLE),
     %% Write initial string...
-    nc_srv:addstr(0, 0, "Hello World!"),
-    nc_srv:refresh(),
+    ncdrv:addstr(0, 0, "Hello World!"),
+    ncdrv:refresh(),
     %% Start the process that will "move" the string
     Mover = spawn(fun() -> mvhello() end),
     ctrl(Mover).
 
 ctrl(Mover) ->
     %% get key-input
-    C = nc_srv:getch(),
+    C = ncdrv:getch(),
     case C of
 	$q -> 
 	    %% If we get a 'q' then exit the mover and stop ncurses
@@ -260,21 +260,21 @@ mvhello() -> mvhello(0, 0, 1, 1).
 %% take previous pos and direction and print out new string
 mvhello(PrevY, PrevX, DirY, DirX) ->
     %% "erase" previous position
-    nc_srv:addstr(PrevY, PrevX, "            "),
+    ncdrv:addstr(PrevY, PrevX, "            "),
     %% calculate new position and direction
     {NewY, NewX, NewDirY, NewDirX} =
 	calc_new_pos(PrevY, PrevX, DirY, DirX),
     %% "move" the text to new position
-    nc_srv:addstr(NewY, NewX, "Hello World!"),
+    ncdrv:addstr(NewY, NewX, "Hello World!"),
     %% update the screen to show the change
-    nc_srv:refresh(),
+    ncdrv:refresh(),
     %% do it again!
     timer:sleep(1),
     mvhello(NewY, NewX, NewDirY, NewDirX).
 
 calc_new_pos(Py, Px, Dy, Dx) ->
     %% get max coords of the screen
-    {My, Mx} = nc_srv:getmaxyx(),
+    {My, Mx} = ncdrv:getmaxyx(),
     %% calc new vertical position and new direction
     {NewPy, NewDy} =
 	if (Py+(Dy) >= My) orelse (Py+(Dy) < 0) ->

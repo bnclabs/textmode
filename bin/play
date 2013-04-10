@@ -1,0 +1,205 @@
+#!/usr/bin/env escript
+%% -*- erlang -*-
+%%! -noinput -smp disable
+
+-include_lib("ncurses/include/ncurses.hrl").
+
+main([What]) ->
+    application:start(ncurses),
+    play(What),
+    %try play(What)
+    %catch
+    %    X:Y ->
+    %        io:format( "Exception type : ~p~n", [X] ),
+    %        io:format( "Exception : ~p~n", [Y] );
+    %    _:_ ->
+    %        io:format( "Unknown exception" )
+    %end,
+    application:stop(ncurses),
+    erlang:halt();
+
+main(_) ->
+    usage().
+
+usage() ->
+    io:format("usage: play\n"),
+    erlang:halt(1).
+
+play(What) ->
+    case What of
+        "curses" -> curses();
+        "addch" -> addch();
+        "addstr" -> addstr();
+        "addchstr" -> addchstr();
+        "attrs" -> attrs();
+        "coords" -> coords()
+    end.
+
+% Initialize
+curses() ->
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    ncdrv:addstr( "NCurses version : " ),
+    ncdrv:addstr( ncdrv:curses_version() ),
+    ncdrv:addch($\n),
+    ncdrv:addstr( "Has color : " ),
+    ncdrv:addstr( io_lib:format( "~p~n", [ncdrv:has_colors()] )),
+    ncdrv:addstr( "Can change color : " ),
+    ncdrv:addstr( io_lib:format( "~p~n", [ncdrv:can_change_color()] )),
+    ncdrv:addstr( "RGB ... \n" ),
+    ncdrv:addstr( "  BLACK   : " ),
+    ncdrv:addstr(
+        io_lib:format( "~p~n", [ncdrv:color_content(?COLOR_BLACK)] )),
+    ncdrv:addstr( "  RED     : " ),
+    ncdrv:addstr(
+        io_lib:format( "~p~n", [ncdrv:color_content(?COLOR_RED)] )),
+    ncdrv:addstr( "  GREEN   : " ),
+    ncdrv:addstr(
+        io_lib:format( "~p~n", [ncdrv:color_content(?COLOR_GREEN)] )),
+    ncdrv:addstr( "  YELLOW  : " ),
+    ncdrv:addstr(
+        io_lib:format( "~p~n", [ncdrv:color_content(?COLOR_YELLOW)] )),
+    ncdrv:addstr( "  BLUE    : " ),
+    ncdrv:addstr(
+        io_lib:format( "~p~n", [ncdrv:color_content(?COLOR_BLUE)] )),
+    ncdrv:addstr( "  MAGENTA : " ),
+    ncdrv:addstr(
+        io_lib:format( "~p~n",[ncdrv:color_content(?COLOR_MAGENTA)] )),
+    ncdrv:addstr( "  CYAN    : " ),
+    ncdrv:addstr(
+        io_lib:format( "~p~n", [ncdrv:color_content(?COLOR_CYAN)] )),
+    ncdrv:addstr( "  WHITE   : " ),
+    ncdrv:addstr(
+        io_lib:format( "~p~n", [ncdrv:color_content(?COLOR_WHITE)] )),
+    ncdrv:refresh(),
+    ncdrv:addstr( "Press any key to hear a beep\n" ),
+    ncdrv:refresh(),
+    ncdrv:getch(),
+    ncdrv:beep(),
+    ncdrv:addstr( "Press any key to see a flash\n" ),
+    ncdrv:refresh(),
+    ncdrv:getch(),
+    ncdrv:flash(),
+    ncdrv:getch(),
+    ok.
+
+addch() ->
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    ncdrv:addstr( "Testing with cbreak / noecho - line buffered ... \n" ),
+    ncdrv:addch(?CH(?A_UNDERLINE, 0, 97)),
+    ncdrv:addch(97),
+    ncdrv:addch(4,5,97),
+    ncdrv:addch(4,5,?CH(?A_UNDERLINE, 0, 97)), % Cursor will be at (4,6)
+    ncdrv:addch($\n),
+    ncdrv:refresh(),
+    Line1 = intill(10, []),
+    timer:sleep(1000),
+    ncdrv:addstr(Line1),
+    cursyx(),
+    ncdrv:addch($\n),
+    ncdrv:refresh(),
+
+    ncdrv:getch(),
+    ok.
+
+addstr() ->
+    %% Set attributes
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    %% Write initial string...
+    ncdrv:addstr("Testing add(n)str ...\n"),
+    ncdrv:addstr(lists:duplicate(80, $H)),
+    ncdrv:addch($\n),
+    ncdrv:addstr(4, 2, lists:duplicate(8, $H)),
+    ncdrv:addch($\n),
+    ncdrv:addnstr(lists:duplicate(80, $H), 80),
+    ncdrv:addnstr(8, 5, lists:duplicate(23, $H), 23),
+    ncdrv:addch($\n),
+    ncdrv:addch($\n),
+    cursyx(),
+    ncdrv:refresh(),
+    ncdrv:getch(),
+    ok.
+
+addchstr() ->
+    %% Set attributes
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    %% Write initial string...
+    ncdrv:addstr("Testing addch(n)str ...\n"),
+    ncdrv:addchstr(
+        lists:map( ncdrv:chattr(?A_BOLD), lists:duplicate(25, $H) )),
+    ncdrv:addchstr(lists:duplicate(23, $H)),
+    ncdrv:refresh(),
+    ncdrv:addch($\n),
+    ncdrv:addchstr(
+        lists:map( ncdrv:chattr(?A_UNDERLINE), lists:duplicate(20, $H) )),
+    ncdrv:addchstr(4, 2, lists:duplicate(8, $H)),
+    ncdrv:addchnstr(8, 5, lists:duplicate(23, $H), 23),
+    ncdrv:addchnstr(lists:duplicate(80, $H), 80),
+    cursyx(),
+    ncdrv:refresh(),
+    ncdrv:getch(),
+    ok.
+
+attrs() ->
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    ncdrv:init_pairs(),
+    ncdrv:addstr( "Testing cursor invisible ... \n" ),
+    ncdrv:refresh(),
+    ncdrv:curs_set(?CURS_INVISIBLE),
+    ncdrv:getch(),
+    ncdrv:addstr( "Testing cursor very visible ... \n" ),
+    ncdrv:refresh(),
+    ncdrv:curs_set(?CURS_VERY_VISIBLE),
+    ncdrv:getch(),
+    ncdrv:curs_set(?CURS_NORMAL),
+
+    ncdrv:addstr( "Testing color_set ... \n" ),
+    ncdrv:refresh(),
+    Fn = fun(CPair) -> ncdrv:color_set(CPair), ncdrv:addch($a) end,
+    lists:map(Fn, lists:seq(0,64)),
+    ncdrv:refresh(),
+    ncdrv:getch(),
+
+    ncdrv:addstr( "Testing attr_set ... \n" ),
+    ncdrv:refresh(),
+    Fn1 = fun(CPair) ->
+            ncdrv:attrset(?COLOR_PAIR(CPair)),
+            ncdrv:addch($a),
+            ncdrv:attron(?A_BOLD),
+            ncdrv:addch($a)
+         end,
+    lists:map(Fn1, lists:seq(0,64)),
+    ncdrv:refresh(),
+    ncdrv:getch(),
+    ok.
+
+coords() ->
+    ncdrv:cbreak(),
+    ncdrv:noecho(),
+    ncdrv:addstr( io_lib:format("GETYX    : ~p~n", [ncdrv:getyx()] )),
+    ncdrv:addstr( io_lib:format("GETBEGYX : ~p~n", [ncdrv:getbegyx()] )),
+    ncdrv:addstr( io_lib:format("GETMAXYX : ~p~n", [ncdrv:getmaxyx()] )),
+    ncdrv:addstr( io_lib:format("GETPARYX : ~p~n", [ncdrv:getparyx()] )),
+    ncdrv:refresh(),
+    ncdrv:getch(),
+    ok.
+
+intill(Expect, Expect, Acc) ->
+    ncdrv:echochar(Expect),
+    lists:reverse(Acc);
+intill(Expect, Val, Acc) ->
+    ncdrv:echochar(Val),
+    Val_ = ncdrv:getch(), 
+    intill(Expect, Val_, [Val | Acc]).
+
+intill(Expect, Acc) ->
+    intill(Expect, ncdrv:getch(), Acc).
+
+cursyx() ->
+    ncdrv:addstr( io_lib:format( "~p", [ncdrv:getyx()] )).
+
+% vim: filetype=erlang:

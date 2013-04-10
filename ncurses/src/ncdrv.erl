@@ -1,10 +1,7 @@
 % Only support cbreak mode.
 
--module(nc_srv).
+-module(ncdrv).
 -behaviour(gen_server).
-
--include("ncurses.hrl").
--include("ncommands.hrl").
 
 % Behaviour Callbacks
 -export([
@@ -13,7 +10,8 @@
 ]).
 
 % Module API
--export([start_link/0]).
+-export([start_link/1, win/0, win/1, wdom/0, wdom/1, app/0, app/1, 
+         trapexit/0]).
 
 % NCurses API
 -export([
@@ -55,510 +53,270 @@
     innstr/1, innstr/2, innstr/3, innstr/4,
     inchnstr/1, inchnstr/2, inchnstr/3, inchnstr/4,
 
-	move/2, curs_set/1,
+    % Window functions
+    newwin/4, delwin/1,
+    move/2, move/3, hline/2, hline/3, hline/4, hline/5,
+    vline/2, vline/3, vline/4, vline/5, border/8, wborder/9, box/3,
+	curs_set/1,
     nl/0, nonl/0,
-	scrollok/2, newwin/4, delwin/1, wmove/3,
-	hline/2,
-	whline/3, vline/2, wvline/3, border/8, wborder/9, box/3
-
-    %leaveok/0
+	scrollok/2
 ]).
 
 % Utility functions
--export([ch/2, chattr/1, chcolor/1, init_pairs/0]).
+-export([ch/2, chattr/1, chcolor/1, init_pairs/0, display/1]).
 
-% Records
--record(state, { port, getch, mode }).
+-include("ncurses.hrl").
+-include("ncommands.hrl").
 
-%% Module API
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, no_args, []).
+-define(INT(Val),
+        is_integer(Val)).
+-define(INT(Val1, Val2),
+        is_integer(Val1) andalso is_integer(Val2)).
+-define(INT(Val1, Val2, Val3),
+        is_integer(Val1) andalso is_integer(Val2) andalso is_integer(Val3)).
+-define(BOOL(Val),
+        is_boolean(Val)).
+-define(BOOL(Val1, Val2),
+        is_boolean(Val1) andalso is_boolean(Val2)).
+-define(BOOL(Val1, Val2, Val3),
+        is_boolean(Val1) andalso is_boolean(Val2) andalso is_boolean(Val3)).
+-define(INT_BOOL(Val1, Val2),
+        is_integer(Val1) andalso is_boolean(Val2)).
+%---- Module API
 
-%%---- NCurses API
+start_link(Args) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, Args, []).
+
+win() -> gen_server:call(?MODULE, win, infinity).
+win(Win) -> gen_server:call(?MODULE, {win, Win}, infinity).
+app() -> gen_server:call(?MODULE, app, infinity).
+app(App) -> gen_server:call(?MODULE, {app, App}, infinity).
+wdom() -> gen_server:call(?MODULE, wdom, infinity).
+wdom(WDom) -> gen_server:call(?MODULE, {wdom, WDom}, infinity).
+
+trapexit() ->
+    process_flag(trap_exit, true),
+    erlang:link(erlang:whereis(?MODULE)),
+    receive {'EXIT', _From, Reason} -> Reason end.
+
+%---- NCurses API
 
 % terminal routines
-beep() ->
-    gen_server:call(?MODULE, {call, ?BEEP, undefined}, infinity).
-
-flash() ->
-    gen_server:call(?MODULE, {call, ?FLASH, undefined}, infinity).
-
-curses_version() ->
-    gen_server:call(?MODULE, {call, ?CURSES_VERSION, undefined}, infinity).
+beep() -> ncall({?BEEP, undefined}).
+flash() -> ncall({?FLASH, undefine}).
+curses_version() -> ncall({?CURSES_VERSION, undefined}).
 
 % window refresh
-refresh() ->
-    refresh(?W_STDSCR).
-
-refresh(Window) when is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?WREFRESH, Window}, infinity).
-
-wnoutrefresh(Window) when is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?WNOUTREFRESH, Window}, infinity).
-
-doupdate() ->
-    gen_server:call(?MODULE, {call, ?DOUPDATE, undefined}, infinity).
-
-werase() ->
-    werase(?W_STDSCR).
-
-werase(Window) ->
-    gen_server:call(?MODULE, {call, ?WERASE, Window}, infinity).
-
-clear() ->
-    clear(?W_STDSCR).
-
-clear(Window) ->
-    gen_server:call(?MODULE, {call, ?WCLEAR, Window}, infinity).
-
-clrtobot() ->
-    clrtobot(?W_STDSCR).
-
-clrtobot(Window) ->
-    gen_server:call(?MODULE, {call, ?WCLRTOBOT, Window}, infinity).
-
-clrtoeol() ->
-    clrtoeol(?W_STDSCR).
-
-clrtoeol(Window) ->
-    gen_server:call(?MODULE, {call, ?WCLRTOEOL, Window}, infinity).
-
-getyx() ->
-    getyx(?W_STDSCR).
-
-getyx(Window) when is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?GETYX, Window}, infinity).
-
-getbegyx() ->
-    getbegyx(?W_STDSCR).
-
-getbegyx(Window) ->
-    gen_server:call(?MODULE, {call, ?GETBEGYX, Window}, infinity).
-
-getmaxyx() ->
-    getmaxyx(?W_STDSCR).
-
-getmaxyx(Window) ->
-    gen_server:call(?MODULE, {call, ?GETMAXYX, Window}, infinity).
-
-
-getparyx() ->
-    getparyx(?W_STDSCR).
-
-getparyx(Window) ->
-    gen_server:call(?MODULE, {call, ?GETPARYX, Window}, infinity).
-
+refresh() -> refresh(?W_STDSCR).
+refresh(Win) -> ncall({?WREFRESH, Win}).
+wnoutrefresh(Win) -> ncall({?WNOUTREFRESH, Win}).
+doupdate() -> ncall({?DOUPDATE, undefined}).
+werase() -> werase(?W_STDSCR).
+werase(Win) -> ncall({?WERASE, Win}).
+clear() -> clear(?W_STDSCR).
+clear(Win) -> ncall({?WCLEAR, Win}).
+clrtobot() -> clrtobot(?W_STDSCR).
+clrtobot(Win) -> ncall({?WCLRTOBOT, Win}).
+clrtoeol() -> clrtoeol(?W_STDSCR).
+clrtoeol(Win) -> ncall({?WCLRTOEOL, Win}).
+getyx() -> getyx(?W_STDSCR).
+getyx(Win) -> ncall({?GETYX, Win}).
+getbegyx() -> getbegyx(?W_STDSCR).
+getbegyx(Win) -> ncall({?GETBEGYX, Win}).
+getmaxyx() -> getmaxyx(?W_STDSCR).
+getmaxyx(Win) -> ncall({?GETMAXYX, Win}).
+getparyx() -> getparyx(?W_STDSCR).
+getparyx(Win) -> ncall({?GETPARYX, Win}).
 
 % input options
-raw() -> 
-    gen_server:call(?MODULE, {call, ?RAW, undefined}, infinity).
-
-noraw() -> 
-    gen_server:call(?MODULE, {call, ?NORAW, undefined}, infinity).
-
-cbreak() -> 
-    gen_server:call(?MODULE, {call, ?CBREAK, undefined}, infinity).
-
-nocbreak() -> 
-    "Not supported".
-
-echo() -> 
-    gen_server:call(?MODULE, {call, ?ECHO, undefined}, infinity).
-
-noecho() -> 
-    gen_server:call(?MODULE, {call, ?NOECHO, undefined}, infinity).
-
-keypad(Window, BFlag) when is_integer(Window) andalso is_boolean(BFlag) ->
-    gen_server:call(?MODULE, {call, ?KEYPAD, {Window, BFlag}}, infinity).
-
-nodelay(Window, BFlag) when is_integer(Window) andalso is_boolean(BFlag) ->
-    gen_server:call(?MODULE, {call, ?NODELAY, {Window, BFlag}}, infinity).
-
-halfdelay(Tenths) when is_integer(Tenths) ->
-    gen_server:call(?MODULE, {call, ?HALFDELAY, Tenths}, infinity).
-
-notimeout(Window, BFlag) when is_integer(Window) andalso is_boolean(BFlag) ->
-    gen_server:call(?MODULE, {call, ?NOTIMEOUT, {Window, BFlag}}, infinity).
-
-timeout(Delay) when is_integer(Delay) ->
-    wtimeout(?W_STDSCR, Delay).
-
-wtimeout(Window, Delay) when is_integer(Window) andalso is_boolean(Delay) ->
-    gen_server:call(?MODULE, {call, ?WTIMEOUT, {Window, Delay}}, infinity).
-
+raw() -> ncall({?RAW, undefined}).
+noraw() -> ncall({?NORAW, undefined}).
+cbreak() -> ncall({?CBREAK, undefined}).
+nocbreak() -> "Not supported".
+echo() -> ncall({?ECHO, undefined}).
+noecho() -> ncall({?NOECHO, undefined}).
+keypad(Win, Flag) -> ncall({?KEYPAD, {Win, Flag}}).
+nodelay(Win, Flag) -> ncall({?NODELAY, {Win, Flag}}).
+halfdelay(Tenths) -> ncall({?HALFDELAY, Tenths}).
+notimeout(Win, Flag) -> ncall({?NOTIMEOUT, {Win, Flag}}).
+timeout(Delay) -> wtimeout(?W_STDSCR, Delay).
+wtimeout(Win, Delay) -> ncall({?WTIMEOUT, {Win, Delay}}).
 
 % do character output
-addch(Char) when is_integer(Char) ->
-    addch(?W_STDSCR, Char).
+addch(Char) -> addch(?W_STDSCR, Char).
+addch(Win, Char) -> ncall({?WADDCH, {Win, Char}}).
+addch(Y, X, Char) -> addch(?W_STDSCR, Y, X, Char).
+addch(Win, Y, X, Char) -> ncall({?WADDCH, {Win,Y,X,Char}}).
 
-addch(Window, Char) when is_integer(Window) andalso is_integer(Char) ->
-    gen_server:call(?MODULE, {call, ?WADDCH, {Window, Char}}, infinity).
+echochar(Char) -> echochar(?W_STDSCR, Char).
+echochar(Win, Char) -> ncall({?WECHOCHAR, {Win, Char}}).
 
-addch(Y, X, Char) 
-        when is_integer(Char) andalso is_integer(X) andalso is_integer(Y) ->
-    addch(?W_STDSCR, Y, X, Char).
+delch() -> delch(?W_STDSCR).
+delch(Win) -> ncall({?WDELCH, {Win}}).
+delch(Y, X) -> delch(?W_STDSCR, Y, X).
+delch(Win, Y, X ) -> ncall({?WDELCH, {Win, Y, X}}).
 
-addch(Window, Y, X, Char)
-        when is_integer(Window) andalso is_integer(Y) andalso
-             is_integer(X) andalso is_integer(Char) ->
-    gen_server:call(?MODULE, {call, ?WADDCH, {Window,Y,X,Char}}, infinity).
-
-echochar(Char) when is_integer(Char) ->
-    echochar(?W_STDSCR, Char).
-
-echochar(Window, Char) when is_integer(Window) andalso is_integer(Char) ->
-    gen_server:call(?MODULE, {call, ?WECHOCHAR, {Window, Char}}, infinity).
-
-delch() ->
-    delch(?W_STDSCR).
-
-delch(Window) when is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?WDELCH, {Window}}, infinity).
-
-delch(Y, X) ->
-    delch(?W_STDSCR, Y, X).
-
-delch(Window, Y, X )
-        when is_integer(Window) andalso is_integer(Y) andalso is_integer(X) ->
-    gen_server:call(?MODULE, {call, ?WDELCH, {Window, Y, X}}, infinity).
-
-deleteln() ->
-    deleteln(?W_STDSCR).
-
-deleteln(Window) ->
-    gen_server:call(?MODULE, {call, ?WDELETELN, {Window}}, infinity).
-
-insdelln(N) ->
-    insdelln(?W_STDSCR, N).
-
-insdelln(Window, N) ->
-    gen_server:call(?MODULE, {call, ?WINSDELLN, {Window, N}}, infinity).
-    
-insertln() ->
-    insertln(?W_STDSCR).
-
-insertln(Window) ->
-    gen_server:call(?MODULE, {call, ?WINSERTLN, {Window}}, infinity).
-
-insch(Char) when is_integer(Char) ->
-    insch(?W_STDSCR, Char).
-
-insch(Window, Char) when is_integer(Window) andalso is_integer(Char) ->
-    gen_server:call(?MODULE, {call, ?WINSCH, {Window, Char}}, infinity).
-
-insch(Y, X, Char) 
-        when is_integer(Char) andalso is_integer(X) andalso is_integer(Y) ->
-    insch(?W_STDSCR, Y, X, Char).
-
-insch(Window, Y, X, Char)
-        when is_integer(Window) andalso is_integer(Y) andalso
-             is_integer(X) andalso is_integer(Char) ->
-    gen_server:call(?MODULE, {call, ?WINSCH, {Window, Y, X, Char}}, infinity).
+insch(Char) -> insch(?W_STDSCR, Char).
+insch(Win, Char) -> ncall({?WINSCH, {Win, Char}}).
+insch(Y, X, Char) -> insch(?W_STDSCR, Y, X, Char).
+insch(Win, Y, X, Char) -> ncall({?WINSCH, {Win, Y, X, Char}}).
 
 % do string output
-addstr(String) ->
-    addstr(?W_STDSCR, String).
-
-addstr(Window, String) when is_integer(Window) andalso is_list(String) ->
+addstr(String) -> addstr(?W_STDSCR, String).
+addstr(Win, String) ->
     Str = lists:flatten(String),
-    addnstr_(Window, Str, erlang:length(Str)).
-
-addstr(Y, X, String)
-        when is_list(String) andalso is_integer(X) andalso is_integer(Y) ->
-    addstr(?W_STDSCR, Y, X, String).
-
-addstr(Window, Y, X, String)
-        when is_integer(Window) andalso is_integer(Y)
-        andalso is_integer(X) andalso is_list(String) ->
+    addnstr_(Win, Str, erlang:length(Str)).
+addstr(Y, X, String) -> addstr(?W_STDSCR, Y, X, String).
+addstr(Win, Y, X, String) ->
     Str = lists:flatten(String),
-    addnstr_(Window, Y, X, Str, erlang:length(Str)).
+    addnstr_(Win, Y, X, Str, erlang:length(Str)).
 
-%% In the following four APIs N should not be less than the size of String
-%% list. It is better to use the addstr() variant.
-addnstr(String, N) ->
-    addnstr(?W_STDSCR, String, N).
-
-addnstr(Window, String, N) when is_integer(Window) andalso is_list(String) ->
+% In the following four APIs N should not be less than the size of String
+% list. It is better to use the addstr() variant.
+addnstr(String, N) -> addnstr(?W_STDSCR, String, N).
+addnstr(Win, String, N) ->
     Str = lists:flatten(String),
-    addnstr_(Window, Str, N).
-
-addnstr(Y, X, String, N)
-        when is_list(String) andalso is_integer(X) andalso is_integer(Y) ->
-    addnstr(?W_STDSCR, Y, X, String, N).
-
-addnstr(Window, Y, X, String, N)
-        when is_integer(Window) andalso is_integer(Y)
-        andalso is_integer(X) andalso is_list(String) ->
+    addnstr_(Win, Str, N).
+addnstr(Y, X, String, N) -> addnstr(?W_STDSCR, Y, X, String, N).
+addnstr(Win, Y, X, String, N) ->
     Str = lists:flatten(String),
-    addnstr_(Window, Y, X, Str, N).
+    addnstr_(Win, Y, X, Str, N).
 
-addnstr_(Window, Str, N) ->                 % local method
-    gen_server:call(?MODULE, {call, ?WADDNSTR, {Window, N, Str}}, infinity).
+addnstr_(Win, Str, N) ->                 % local method
+    ncall({?WADDNSTR, {Win, N, Str}}).
 
-addnstr_(Window, Y, X, Str, N) ->           % local method
-    Args = {Window, Y, X, N, Str},
-    gen_server:call(?MODULE, {call, ?WADDNSTR, Args}, infinity).
+addnstr_(Win, Y, X, Str, N) ->           % local method
+    ncall({?WADDNSTR, {Win, Y, X, N, Str}}).
 
 %% This can send both string terms and list terms based on the chtype values.
-addchstr(String) when is_list(String) ->
-    addchstr(?W_STDSCR, String).
-
-addchstr(Window, String) when is_integer(Window) andalso is_list(String) ->
+addchstr(String) -> addchstr(?W_STDSCR, String).
+addchstr(Win, String) ->
     Str = lists:flatten(String),
-    addchnstr_(Window, Str, erlang:length(Str)).
-
-addchstr(Y, X, String)
-        when is_list(String) andalso is_integer(X) andalso is_integer(Y) ->
-    addchstr(?W_STDSCR, Y, X, String).
-
-addchstr(Window, Y, X, String)
-        when is_integer(Window) andalso is_integer(Y)
-        andalso is_integer(X) andalso is_list(String) ->
+    addchnstr_(Win, Str, erlang:length(Str)).
+addchstr(Y, X, String) -> addchstr(?W_STDSCR, Y, X, String).
+addchstr(Win, Y, X, String) ->
     Str = lists:flatten(String),
-    addchnstr_(Window, Y, X, Str, erlang:length(Str)).
+    addchnstr_(Win, Y, X, Str, erlang:length(Str)).
 
-addchnstr(String, N) when is_list(String) ->
-    addchnstr(?W_STDSCR, String, N).
-
-addchnstr(Window, String, N) when is_integer(Window) andalso is_list(String) ->
+addchnstr(String, N) -> addchnstr(?W_STDSCR, String, N).
+addchnstr(Win, String, N) ->
     Str = lists:flatten(String),
-    addchnstr_(Window, Str, N).
-
-addchnstr(Y, X, String, N)
-        when is_list(String) andalso is_integer(X) andalso is_integer(Y) ->
-    addchnstr(?W_STDSCR, Y, X, String, N).
-
-addchnstr(Window, Y, X, String, N)
-        when is_integer(Window) andalso is_integer(Y)
-        andalso is_integer(X) andalso is_list(String) ->
+    addchnstr_(Win, Str, N).
+addchnstr(Y, X, String, N) -> addchnstr(?W_STDSCR, Y, X, String, N).
+addchnstr(Win, Y, X, String, N) ->
     Str = lists:flatten(String),
-    addchnstr_(Window, Y, X, Str, N).
+    addchnstr_(Win, Y, X, Str, N).
 
-addchnstr_(Window, Str, N) ->                 % local method
-    gen_server:call(?MODULE, {call, ?WADDCHNSTR, {Window, N, Str}}, infinity).
+addchnstr_(Win, Str, N) ->                 % local method
+    ncall({?WADDCHNSTR, {Win, N, Str}}).
 
-addchnstr_(Window, Y, X, Str, N) ->           % local method
-    Args = {Window, Y, X, N, Str},
-    gen_server:call(?MODULE, {call, ?WADDCHNSTR, Args}, infinity).
+addchnstr_(Win, Y, X, Str, N) ->           % local method
+    ncall({?WADDCHNSTR, {Win, Y, X, N, Str}}).
 
-insstr(String) when is_list(String) ->
-    insstr(?W_STDSCR, String).
-
-insstr(Window, String) when is_integer(Window) andalso is_list(String) ->
+insstr(String) -> insstr(?W_STDSCR, String).
+insstr(Win, String) ->
     Str = lists:flatten(String),
-    insnstr_(Window, Str, erlang:length(Str)).
-
-insstr(Y, X, String)
-        when is_list(String) andalso is_integer(X) andalso is_integer(Y) ->
-    insstr(?W_STDSCR, Y, X, String).
-
-insstr(Window, Y, X, String)
-        when is_integer(Window) andalso is_integer(Y)
-        andalso is_integer(X) andalso is_list(String) ->
+    insnstr_(Win, Str, erlang:length(Str)).
+insstr(Y, X, String) -> insstr(?W_STDSCR, Y, X, String).
+insstr(Win, Y, X, String) ->
     Str = lists:flatten(String),
-    insnstr_(Window, Y, X, Str, erlang:length(Str)).
+    insnstr_(Win, Y, X, Str, erlang:length(Str)).
 
-insnstr(String, N) when is_list(String) ->
-    insnstr(?W_STDSCR, String, N).
-
-insnstr(Window, String, N) when is_integer(Window) andalso is_list(String) ->
+insnstr(String, N) -> insnstr(?W_STDSCR, String, N).
+insnstr(Win, String, N) ->
     Str = lists:flatten(String),
-    insnstr_(Window, Str, N).
-
-insnstr(Y, X, String, N)
-        when is_list(String) andalso is_integer(X) andalso is_integer(Y) ->
-    insnstr(?W_STDSCR, Y, X, String, N).
-
-insnstr(Window, Y, X, String, N)
-        when is_integer(Window) andalso is_integer(Y)
-        andalso is_integer(X) andalso is_list(String) ->
+    insnstr_(Win, Str, N).
+insnstr(Y, X, String, N) -> insnstr(?W_STDSCR, Y, X, String, N).
+insnstr(Win, Y, X, String, N) ->
     Str = lists:flatten(String),
-    insnstr_(Window, Y, X, Str, N).
+    insnstr_(Win, Y, X, Str, N).
 
-insnstr_(Window, Str, N) ->                 % local method
-    gen_server:call(?MODULE, {call, ?WINSNSTR, {Window, N, Str}}, infinity).
+insnstr_(Win, Str, N) ->                 % local method
+    ncall({?WINSNSTR, {Win, N, Str}}).
 
-insnstr_(Window, Y, X, Str, N) ->           % local method
-    Args = {Window, Y, X, N, Str},
-    gen_server:call(?MODULE, {call, ?WINSNSTR, Args}, infinity).
+insnstr_(Win, Y, X, Str, N) ->           % local method
+    ncall({?WINSNSTR, {Win, Y, X, N, Str}}).
 
+deleteln() -> deleteln(?W_STDSCR).
+deleteln(Win) -> ncall({?WDELETELN, {Win}}).
+insdelln(N) -> insdelln(?W_STDSCR, N).
+insdelln(Win, N) -> ncall({?WINSDELLN, {Win, N}}).
+insertln() -> insertln(?W_STDSCR).
+insertln(Win) -> ncall({?WINSERTLN, {Win}}).
 
 % do attribute settings
-color_set(CPair) when is_integer(CPair) -> 
-    color_set(?W_STDSCR, CPair).
-
-color_set(Window, CPair) when is_integer(Window) andalso is_integer(CPair) ->
-    gen_server:call(?MODULE, {call, ?COLOR_SET, {Window, CPair}}, infinity).
-
-attrset(Attr) when is_integer(Attr) ->
-    attrset(?W_STDSCR, Attr).
-
-attrset(Window, Attr) when is_integer(Attr) andalso is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?ATTRSET, {Window, Attr}}, infinity).
-
-attroff(Mask) ->
-    attroff(?W_STDSCR, Mask).
-
-attroff(Window, Mask) when is_integer(Mask) andalso is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?ATTROFF, {Window, Mask}}, infinity).
-
-attron(Mask) ->
-    attron(?W_STDSCR, Mask).
-
-attron(Window, Mask) when is_integer(Mask) andalso is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?ATTRON, {Window, Mask}}, infinity).
-
-attr_get() ->
-    attr_get(?W_STDSCR).
-
-attr_get(Window) when is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?ATTR_GET, {Window}}, infinity).
-
-chgat(N, Attr, CPair)
-        when is_integer(N) andalso is_integer(Attr) andalso is_integer(CPair)->
-    chgat(?W_STDSCR, N, Attr, CPair).
-
-chgat(Window, N, Attr, CPair)
-        when is_integer(Window) andalso is_integer(N) andalso 
-             is_integer(Attr) andalso is_integer(CPair)->
-    Args = {Window, N, Attr, CPair},
-    gen_server:call(?MODULE, {call, ?CHGAT, Args}, infinity).
-
-chgat(Y, X, N, Attr, CPair)
-        when is_integer(Y) andalso is_integer(X) andalso 
-             is_integer(N) andalso is_integer(Attr) andalso is_integer(CPair)->
-    chgat(?W_STDSCR, Y, X, N, Attr, CPair).
-
-chgat(Window, Y, X, N, Attr, CPair)
-        when is_integer(Window) andalso is_integer(Y) andalso 
-             is_integer(X) andalso is_integer(N) andalso is_integer(Attr) andalso
-             is_integer(CPair)->
-    Args = {Window, Y, X, N, Attr, CPair},
-    gen_server:call(?MODULE, {call, ?CHGAT, Args}, infinity).
+color_set(CPair) -> color_set(?W_STDSCR, CPair).
+color_set(Win, CPair) -> ncall({?COLOR_SET, {Win, CPair}}).
+attrset(Attr) -> attrset(?W_STDSCR, Attr).
+attrset(Win, Attr) -> ncall({?ATTRSET, {Win, Attr}}).
+attroff(Mask) -> attroff(?W_STDSCR, Mask).
+attroff(Win, Mask) -> ncall({?ATTROFF, {Win, Mask}}).
+attron(Mask) -> attron(?W_STDSCR, Mask).
+attron(Win, Mask) -> ncall({?ATTRON, {Win, Mask}}).
+attr_get() -> attr_get(?W_STDSCR).
+attr_get(Win) -> ncall({?ATTR_GET, {Win}}).
+chgat(N, Attr, CPair) -> chgat(?W_STDSCR, N, Attr, CPair).
+chgat(Win, N, Attr, CPair) -> ncall({?CHGAT, {Win, N, Attr, CPair}}).
+chgat(Y, X, N, Attr, CPair) -> chgat(?W_STDSCR, Y, X, N, Attr, CPair).
+chgat(Win, Y, X, N, Attr, CPair) -> ncall({?CHGAT, {Win,Y,X,N,Attr,CPair}}).
 
 % do color settings
-has_colors() ->
-    gen_server:call(?MODULE, {call, ?HAS_COLORS, undefined}, infinity).
-
-can_change_color() ->
-    gen_server:call(?MODULE, {call, ?CAN_CHANGE_COLOR, undefined}, infinity).
-
-start_color() ->
-    gen_server:call(?MODULE, {call, ?START_COLOR, undefined}, infinity).
-
-init_pair(N, FColor, BColor) when is_integer(N) andalso is_integer(FColor)
-				  andalso is_integer(BColor) ->
-    Args = {N, FColor, BColor},
-    gen_server:call(?MODULE, {call, ?INIT_PAIR, Args}, infinity).
-
-color_content(N) when is_integer(N) ->
-    gen_server:call(?MODULE, {call, ?COLOR_CONTENT, N}, infinity).
-
+has_colors() -> ncall({?HAS_COLORS, undefined}).
+can_change_color() -> ncall({?CAN_CHANGE_COLOR, undefined}).
+start_color() -> ncall({?START_COLOR, undefined}).
+init_pair(N, FColor, BColor) -> ncall({?INIT_PAIR, {N, FColor, BColor}}).
+color_content(N) -> ncall({?COLOR_CONTENT, N}).
 
 % do inputs
-getch() ->
-    gen_server:call(?MODULE, getch, infinity).
-
-ungetch(Char) ->
-    gen_server:call(?MODULE, {call, ?UNGETCH, Char}, infinity).
-
-has_key(Char) ->
-    gen_server:call(?MODULE, {call, ?HAS_KEY, Char}, infinity).
-
-inch() ->
-    inch(?W_STDSCR).
-
-inch(Window) ->
-    gen_server:call(?MODULE, {call, ?INCH, {Window}}, infinity).
-
-inch(Y, X) ->
-    inch(?W_STDSCR, Y, X).
-
-inch(Window, Y, X) ->
-    gen_server:call(?MODULE, {call, ?INCH, {Window, Y, X}}, infinity).
-
-innstr(N) ->
-    innstr(?W_STDSCR, N).
-
-innstr(Window, N) ->
-    gen_server:call(?MODULE, {call, ?INNSTR, {Window, N}}, infinity).
-
-innstr(Y, X, N) ->
-    innstr(?W_STDSCR, Y, X, N).
-
-innstr(Window, Y, X, N) ->
-    gen_server:call(?MODULE, {call, ?INNSTR, {Window, Y, X, N}}, infinity).
-
-inchnstr(N) ->
-    inchnstr(?W_STDSCR, N).
-
-inchnstr(Window, N) ->
-    gen_server:call(?MODULE, {call, ?INCHNSTR, {Window, N}}, infinity).
-
-inchnstr(Y, X, N) ->
-    inchnstr(?W_STDSCR, Y, X, N).
-
-inchnstr(Window, Y, X, N) ->
-    gen_server:call(?MODULE, {call, ?INCHNSTR, {Window, Y, X, N}}, infinity).
+getch() -> ncall({?GETCH, undefined}).
+ungetch(Char) -> ncall({?UNGETCH, Char}).
+has_key(Char) -> ncall({?HAS_KEY, Char}).
+inch() -> inch(?W_STDSCR).
+inch(Win) -> ncall({?INCH, {Win}}).
+inch(Y, X) -> inch(?W_STDSCR, Y, X).
+inch(Win, Y, X) -> ncall({?INCH, {Win, Y, X}}).
+innstr(N) -> innstr(?W_STDSCR, N).
+innstr(Win, N) -> ncall({?INNSTR, {Win, N}}).
+innstr(Y, X, N) -> innstr(?W_STDSCR, Y, X, N).
+innstr(Win, Y, X, N) -> ncall({?INNSTR, {Win, Y, X, N}}).
+inchnstr(N) -> inchnstr(?W_STDSCR, N).
+inchnstr(Win, N) -> ncall({?INCHNSTR, {Win, N}}).
+inchnstr(Y, X, N) -> inchnstr(?W_STDSCR, Y, X, N).
+inchnstr(Win, Y, X, N) -> ncall({?INCHNSTR, {Win, Y, X, N}}).
 
 
+% Win functions
+newwin(Height, Width, StartY, StartX) ->
+    ncall({?NEWWIN, {Height, Width, StartY, StartX}}).
+delwin(Win) -> ncall({?DELWIN, Win}).
+move(Y, X) -> move(?W_STDSCR, Y, X).
+move(Win, Y, X) -> ncall({?MOVE, {Win, X, Y}}).
+curs_set(Flag) -> ncall({?CURS_SET, Flag}).
+hline(Char, MaxN) -> hline(?W_STDSCR, Char, MaxN).
+hline(Win, Char, MaxN) -> ncall({?HLINE, {Win, Char, MaxN}}).
+hline(Y, X, Char, MaxN) -> hline(?W_STDSCR, Y, X, Char, MaxN).
+hline(Win, Y, X, Char, MaxN) -> ncall({?HLINE, {Win, Y, X, Char, MaxN}}).
+vline(Char, MaxN) -> vline(?W_STDSCR, Char, MaxN).
+vline(Win, Char, MaxN) -> ncall({?VLINE, {Win, Char, MaxN}}).
+vline(Y, X, Char, MaxN) -> vline(?W_STDSCR, Y, X, Char, MaxN).
+vline(Win, Y, X, Char, MaxN) -> ncall({?VLINE, {Win, Y, X, Char, MaxN}}).
 
-move(Y, X) when is_integer(X) andalso is_integer(Y) ->
-    gen_server:call(?MODULE, {call, ?MOVE, {Y,X}}, infinity).
-
-curs_set(Flag) when is_integer(Flag) ->
-    gen_server:call(?MODULE, {call, ?CURS_SET, Flag}, infinity).
-
-nl() ->
-    gen_server:call(?MODULE, {call, ?NL, undefined}, infinity).
-
-nonl() ->
-    gen_server:call(?MODULE, {call, ?NONL, undefined}, infinity).
-
-scrollok(Window, BFlag) when is_integer(Window) andalso is_boolean(BFlag) ->
-    gen_server:call(?MODULE, {call, ?SCROLLOK, {Window, BFlag}}, infinity).
-
-newwin(Height, Width, StartY, StartX) when is_integer(Height) andalso 
-					   is_integer(Width) andalso 
-					   is_integer(StartY) andalso
-					   is_integer(StartX) ->
-    Args = {Height, Width, StartY, StartX},
-    gen_server:call(?MODULE, {call, ?NEWWIN, Args}, infinity).
-
-delwin(Window) when is_integer(Window) ->
-    gen_server:call(?MODULE, {call, ?DELWIN, Window}, infinity).
-
-wmove(Window, Y, X) when is_integer(Window) andalso is_integer(Y) andalso 
-			 is_integer(X) ->
-    gen_server:call(?MODULE, {call, ?WMOVE, {Window, X, Y}}, infinity).
-
-hline(Char, MaxN) ->
-    whline(?W_STDSCR, Char, MaxN).
-
-whline(Window, Char, MaxN) when is_integer(Window) andalso is_integer(MaxN) ->
-    gen_server:call(?MODULE, {call, ?WHLINE, {Window, Char, MaxN}}, infinity).
-
-vline(Char, MaxN) ->
-    wvline(?W_STDSCR, Char, MaxN).
-
-wvline(Window, Char, MaxN) when is_integer(Window) andalso is_integer(MaxN) ->
-    gen_server:call(?MODULE, {call, ?WVLINE, {Window, Char, MaxN}}, infinity).
-
+nl() -> ncall({?NL, undefined}).
+nonl() -> ncall({?NONL, undefined}).
+scrollok(Win, Flag) -> ncall({?SCROLLOK, {Win, Flag}}).
 border(Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs) ->
     wborder(0, Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs).
+wborder(Win, Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs) ->
+    Args = {Win, Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs},
+    ncall({?WBORDER, Args}).
+box(Win, Vert, Horz) -> ncall({?BOX, {Win, Vert, Horz}}).
 
-wborder(Window, Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs) 
-  when is_integer(Ls) andalso is_integer(Rs) andalso 
-       is_integer(Ts) andalso is_integer(Bs) andalso 
-       is_integer(TLs) andalso is_integer(TRs) andalso 
-       is_integer(BLs) andalso is_integer(BRs) ->
-    Args = {Window, Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs},
-    gen_server:call(?MODULE, {call, ?WBORDER, Args}, infinity).
 
-box(Window, Vert, Horz) when is_integer(Window) andalso is_integer(Vert) andalso
-			     is_integer(Horz) ->
-    gen_server:call(?MODULE, {call, ?BOX, {Window, Vert, Horz}}, infinity).
+ncall({Cmd, Arg}, Timeout) ->
+    {ok, App} = application:get_application(),
+    gen_server:call(?MODULE, {curses, App, Cmd, Arg}, Timeout).
 
+ncall(Request) -> ncall(Request, infinity).
 
 % Utility functions
 ch(Attr, Color) ->
@@ -570,13 +328,18 @@ chattr(Attr) ->
 chcolor(Color) ->
     fun(Char)-> Color bor Char end.
 
+display(Term) ->
+    addstr( io_lib:format( "~p ~n", [Term] )),
+    refresh(),
+    ok.
+
 init_pairs([]) -> ok;
 init_pairs([{N, Fg, Bg} | CPairs]) -> 
     init_pair(N, Fg, Bg),
     init_pairs(CPairs).
 
 init_pairs() ->
-    case nc_srv:has_colors() of
+    case has_colors() of
         true -> 
             init_pairs([
               {?COLOR_BR,  ?COLOR_BLACK, ?COLOR_RED},
@@ -644,13 +407,13 @@ init_pairs() ->
               {?COLOR_WC,  ?COLOR_WHITE, ?COLOR_CYAN}
             ]),
             true;
-        false ->
+        _ ->
             false
     end.
 
 
 % Behaviour Callbacks
-init(no_args) ->
+init(_Args) ->
     process_flag(trap_exit, true),
     case load_driver() of
 	ok ->
@@ -659,45 +422,73 @@ init(no_args) ->
 	    ok = do_call(Port, ?START_COLOR),
 	    ok = do_call(Port, ?WERASE, 0),
 	    ok = do_call(Port, ?WREFRESH, 0),
-	    {ok, #state{ port = Port }};
+	    {ok, #screen{ port = Port }};
 	{error, ErrorCode} ->
 	    exit({driver_error, erl_ddll:format_error(ErrorCode)})
     end.
 
-handle_call({call, Cmd, Args}, _From, State) ->
-    {reply, do_call(State#state.port, Cmd, Args), State};
-handle_call(getch,             From,  #state{ getch=undefined }=State) ->
-    {noreply, State#state{ getch = From }};
-handle_call(getch,             _From, State) ->
-    {reply, -1, State}.
 
-terminate(_Reason, State) ->
-    do_call(State#state.port, ?ENDWIN),
-    do_call(State#state.port, ?CURS_SET, ?CURS_NORMAL),
-    erlang:port_close(State#state.port),
-    erl_ddll:unload("ncdrv").
+handle_call({curses, App, ?GETCH, _}, From, #screen{getch=undefined}=State) ->
+    case State#screen.app of
+        App -> {noreply, State#screen{getch=From}};
+        _ -> {reply, busy, State}
+    end;
 
-handle_info({_Port, {data, _Binary}}, #state{ getch = undefined } = State) ->
+handle_call({curses, _App, ?GETCH, _}, _From, State) ->
+    {reply, busy, State};
+
+handle_call({curses, App, Cmd, Args}, _From, State) ->
+    case State#screen.app of
+        App -> {reply, do_call(State#screen.port, Cmd, Args), State};
+        _ -> {reply, false_context, State}
+    end;
+
+handle_call(win, _From, #screen{win=Win}=State) ->
+    {reply, Win, State};
+
+handle_call({win, Win}, _From, State) ->
+    {reply, Win, State#screen{win=Win}};
+
+handle_call(app, _From, #screen{app=App}=State) ->
+    {reply, App, State};
+
+handle_call({app, App}, _From, State) ->
+    {reply, App, State#screen{app=App}};
+
+handle_call(wdom, _, #screen{wdom=WDom}=State) ->
+    {reply, WDom, State};
+
+handle_call({wdom, WDom}, _, State) ->
+    {reply, WDom, State#screen{wdom=WDom}}.
+
+
+handle_info({_Port, {data, Binary}}, #screen{getch=undefined}=State) ->
+    State#screen.win ! {data, binary_to_term(Binary)},
     {noreply, State};
-handle_info({_Port, {data, Binary}}, State) ->
-    gen_server:reply(State#state.getch, binary_to_term(Binary)),
-    {noreply, State#state{ getch = undefined }}.
 
-%% @hidden
+handle_info({_Port, {data, Binary}}, State) ->
+    gen_server:reply(State#screen.getch, binary_to_term(Binary)),
+    {noreply, State#screen{ getch = undefined }}.
+
 handle_cast(_, State) ->
     {noreply, State}.
 
-%% @hidden
 code_change(_, State, _) ->
     {noreply, State}.
 
+terminate(_Reason, State) ->
+    do_call(State#screen.port, ?ENDWIN),
+    do_call(State#screen.port, ?CURS_SET, ?CURS_NORMAL),
+    erlang:port_close(State#screen.port),
+    erl_ddll:unload("ncdrv").
+
 %%-- Internal Functions
 
-do_call(Port, Cmd) ->
-    do_call(Port, Cmd, undefined).
 
 do_call(Port, Cmd, Args) ->
     binary_to_term(erlang:port_control(Port, Cmd, term_to_binary(Args))).
+
+do_call(Port, Cmd) -> do_call(Port, Cmd, undefined).
 
 load_driver() ->
     Dir = case code:priv_dir(ncurses) of
