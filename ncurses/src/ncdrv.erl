@@ -1,6 +1,7 @@
 % Only support cbreak mode.
 
 -module(ncdrv).
+-author('prataprc@gmail.com').
 -behaviour(gen_server).
 
 % Behaviour Callbacks
@@ -63,7 +64,7 @@
 ]).
 
 % Utility functions
--export([ch/2, chattr/1, chcolor/1, init_pairs/0, display/1]).
+-export([ch/2, chattr/1, chcolor/1, display/1]).
 
 -include("ncurses.hrl").
 -include("ncommands.hrl").
@@ -333,95 +334,20 @@ display(Term) ->
     refresh(),
     ok.
 
-init_pairs([]) -> ok;
-init_pairs([{N, Fg, Bg} | CPairs]) -> 
-    init_pair(N, Fg, Bg),
-    init_pairs(CPairs).
-
-init_pairs() ->
-    case has_colors() of
-        true -> 
-            init_pairs([
-              {?COLOR_BR,  ?COLOR_BLACK, ?COLOR_RED},
-              {?COLOR_BG,  ?COLOR_BLACK, ?COLOR_GREEN},
-              {?COLOR_BY,  ?COLOR_BLACK, ?COLOR_YELLOW},
-              {?COLOR_BBl, ?COLOR_BLACK, ?COLOR_BLUE},
-              {?COLOR_BM,  ?COLOR_BLACK, ?COLOR_MAGENTA},
-              {?COLOR_BC,  ?COLOR_BLACK, ?COLOR_CYAN},
-              {?COLOR_BW,  ?COLOR_BLACK, ?COLOR_WHITE},
-              
-              {?COLOR_RB,  ?COLOR_RED, ?COLOR_BLACK},
-              {?COLOR_RG,  ?COLOR_RED, ?COLOR_GREEN},
-              {?COLOR_RY,  ?COLOR_RED, ?COLOR_YELLOW},
-              {?COLOR_RBl, ?COLOR_RED, ?COLOR_BLUE},
-              {?COLOR_RM,  ?COLOR_RED, ?COLOR_MAGENTA},
-              {?COLOR_RC,  ?COLOR_RED, ?COLOR_CYAN},
-              {?COLOR_RW,  ?COLOR_RED, ?COLOR_WHITE},
-              
-              {?COLOR_GB,  ?COLOR_GREEN, ?COLOR_BLACK},
-              {?COLOR_GR,  ?COLOR_GREEN, ?COLOR_RED},
-              {?COLOR_GY,  ?COLOR_GREEN, ?COLOR_YELLOW},
-              {?COLOR_GBl, ?COLOR_GREEN, ?COLOR_BLUE},
-              {?COLOR_GM,  ?COLOR_GREEN, ?COLOR_MAGENTA},
-              {?COLOR_GC,  ?COLOR_GREEN, ?COLOR_CYAN},
-              {?COLOR_GW,  ?COLOR_GREEN, ?COLOR_WHITE},
-              
-              {?COLOR_YB,  ?COLOR_YELLOW, ?COLOR_BLACK},
-              {?COLOR_YR,  ?COLOR_YELLOW, ?COLOR_RED},
-              {?COLOR_YG,  ?COLOR_YELLOW, ?COLOR_GREEN},
-              {?COLOR_YBl, ?COLOR_YELLOW, ?COLOR_BLUE},
-              {?COLOR_YM,  ?COLOR_YELLOW, ?COLOR_MAGENTA},
-              {?COLOR_YC,  ?COLOR_YELLOW, ?COLOR_CYAN},
-              {?COLOR_YW,  ?COLOR_YELLOW, ?COLOR_WHITE},
-              
-              {?COLOR_BlB, ?COLOR_BLUE, ?COLOR_BLACK},
-              {?COLOR_BlR, ?COLOR_BLUE, ?COLOR_RED},
-              {?COLOR_BlG, ?COLOR_BLUE, ?COLOR_GREEN},
-              {?COLOR_BlY, ?COLOR_BLUE, ?COLOR_YELLOW},
-              {?COLOR_BlM, ?COLOR_BLUE, ?COLOR_MAGENTA},
-              {?COLOR_BlC, ?COLOR_BLUE, ?COLOR_CYAN},
-              {?COLOR_BlW, ?COLOR_BLUE, ?COLOR_WHITE},
-              
-              {?COLOR_MB,  ?COLOR_MAGENTA, ?COLOR_BLACK},
-              {?COLOR_MR,  ?COLOR_MAGENTA, ?COLOR_RED},
-              {?COLOR_MG,  ?COLOR_MAGENTA, ?COLOR_GREEN},
-              {?COLOR_MY,  ?COLOR_MAGENTA, ?COLOR_YELLOW},
-              {?COLOR_MBl, ?COLOR_MAGENTA, ?COLOR_BLUE},
-              {?COLOR_MC,  ?COLOR_MAGENTA, ?COLOR_CYAN},
-              {?COLOR_MW,  ?COLOR_MAGENTA, ?COLOR_WHITE},
-              
-              {?COLOR_CB,  ?COLOR_CYAN, ?COLOR_BLACK},
-              {?COLOR_CR,  ?COLOR_CYAN, ?COLOR_RED},
-              {?COLOR_CG,  ?COLOR_CYAN, ?COLOR_GREEN},
-              {?COLOR_CY,  ?COLOR_CYAN, ?COLOR_YELLOW},
-              {?COLOR_CBl, ?COLOR_CYAN, ?COLOR_BLUE},
-              {?COLOR_CM,  ?COLOR_CYAN, ?COLOR_MAGENTA},
-              {?COLOR_CW,  ?COLOR_CYAN, ?COLOR_WHITE},
-              
-              {?COLOR_WB,  ?COLOR_WHITE, ?COLOR_BLACK},
-              {?COLOR_WR,  ?COLOR_WHITE, ?COLOR_RED},
-              {?COLOR_WG,  ?COLOR_WHITE, ?COLOR_GREEN},
-              {?COLOR_WY,  ?COLOR_WHITE, ?COLOR_YELLOW},
-              {?COLOR_WBl, ?COLOR_WHITE, ?COLOR_BLUE},
-              {?COLOR_WM,  ?COLOR_WHITE, ?COLOR_MAGENTA},
-              {?COLOR_WC,  ?COLOR_WHITE, ?COLOR_CYAN}
-            ]),
-            true;
-        _ ->
-            false
-    end.
-
-
 % Behaviour Callbacks
 init(_Args) ->
     process_flag(trap_exit, true),
+
     case load_driver() of
         ok ->
             Port = erlang:open_port({spawn, "ncdrv"}, [binary]),
             ok = do_call(Port, ?INITSCR),
-            ok = do_call(Port, ?START_COLOR),
+            ok = do_call(Port, ?RAW),
+            ok = do_call(Port, ?NOECHO),
             ok = do_call(Port, ?WERASE, 0),
             ok = do_call(Port, ?WREFRESH, 0),
+            ok = do_call(Port, ?START_COLOR),
+            init_pairs( Port, do_call(Port, ?HAS_COLORS )),
             {ok, #screen{ port = Port }};
 
         {error, ErrorCode} ->
@@ -486,11 +412,20 @@ terminate(_Reason, State) ->
 
 %%-- Internal Functions
 
+init_pairs(Port, true) -> init_pairs(Port, ?COLOR_PAIR_LIST);
+init_pairs(_, false) -> false;
+
+init_pairs(_, []) -> true;
+init_pairs(Port, [{N, Fg, Bg} | CPairs]) -> 
+    do_call(Port, ?INIT_PAIR, {N, Fg, Bg}),
+    init_pairs(Port, CPairs).
+
 
 do_call(Port, Cmd, Args) ->
     binary_to_term(erlang:port_control(Port, Cmd, term_to_binary(Args))).
 
 do_call(Port, Cmd) -> do_call(Port, Cmd, undefined).
+
 
 load_driver() ->
     Dir = case code:priv_dir(ncurses) of
