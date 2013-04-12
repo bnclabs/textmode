@@ -8,10 +8,10 @@
 
 pagefile(XmlFile) ->
     {Node, _Misc} = xmerl_scan:file( XmlFile ),
-    xmlelement(Node).
+    xmltag(Node).
 
 
-xmlelement(Node) ->
+xmltag(Node) ->
     Tag = Node#xmlElement.name,
     Attrs = xmlattrs(Node#xmlElement.attributes, []),
     Content = xmlcontent(Node#xmlElement.content, []),
@@ -30,17 +30,17 @@ xmlattrs([#xmlAttribute{name=Name, value=Value} | As], Acc) ->
 
 
 xmlcontent([], Acc) -> lists:reverse(Acc);
-xmlcontent([#xmlText{value=_} | Cs], Acc) -> xmlcontent(Cs, Acc);
+xmlcontent([#xmlText{value=Value} | Cs], Acc) -> 
+    xmlcontent(Cs, [#text{content=Value} | Acc]);
 xmlcontent([#xmlElement{}=E | Cs], Acc) ->
-    xmlcontent(Cs, [{elem, xmlelement(E)} | Acc]).
+    xmlcontent(Cs, [xmltag(E) | Acc]).
 
 
 boxify({Y, X, Rows, Cols}, Node) ->
     ViewPort = #view{y=Y, x=X, rows=Rows, cols=Cols},
     Box_ = #box{y=Y, x=X, rows=Rows, cols=Cols},
-    Box = box( ViewPort,
-               margin(Node, Box_), border(Node, Box_), padding(Node, Box_),
-               {Y, X, Rows, Cols} ),
+    Node = padding( border( margin( Node, Box_), Box_), Box_),
+    Box = box( ViewPort, Node, {Y, X, Rows, Cols} ),
     Content = boxify(Box#box.view, Node#node.content, []),
     Node#node{content=Content, box=Box}.
 
@@ -51,7 +51,10 @@ boxify(ViewPort, [CNode | CNodes], Acc) ->
     X = case attr(x, CNode) of false -> X_; Xo -> Xo end,
     boxify(ViewPort, CNodes, [boxify({Y, X, Rows, Cols}, CNode) | Acc]).
     
-box(ViewPort, Margin, Border, Padding, {Y, X, Rows, Cols}) ->
+box(ViewPort, Node, {Y, X, Rows, Cols}) ->
+    io:format("~p~n", [Node]),
+    {Margin, Border, Padding} = 
+                {attr(margin, Node), attr(border, Node), attr(padding, Node)},
     #margin{top=Mt, right=Mr, bottom=Mb, left=Ml} = Margin,
     #view{y=Vy, x=Vx, rows=VRows, cols=VCols} = ViewPort,
     {Top, BRows} =
@@ -98,11 +101,12 @@ viewpadding(#view{rows=Vrows, cols=Vcols}=View, Padding) ->
 
 
 margin(Node, _Box) ->
-    Attr = case attr(margin, Node) of
+    Val  = case attr(margin, Node) of
                 false -> {0, 0, 0, 0};
                 {margin, Value} -> marginto( string:tokens(Value, " "), [] )
            end,
-    Node#node{ 
+    Attr = {margin, Val},
+    Node#node{
         attributes=lists:keyreplace(margin, 1, Node#node.attributes, Attr)}.
 
 marginto([], Acc) -> list_to_tuple( lists:reverse( Acc ));
@@ -125,7 +129,7 @@ border(Node, Box) ->
          end,
     LAttrs = [ {1, bordertop, top}, {2, borderright, right},
                {3, borderbottom, bottom}, {4, borderleft, left} ],
-    Attr = lists:foldl( Fn, B, LAttrs),
+    Attr = {border, lists:foldl( Fn, B, LAttrs)},
     Node#node{ 
         attributes=lists:keyreplace(border, 1, Node#node.attributes, Attr)}.
 
@@ -161,10 +165,11 @@ borderto(left, ["1", Char, Color], Box) ->
 
 
 padding(Node, _Box) ->
-    Attr = case attr(padding, Node) of
+    Val  = case attr(padding, Node) of
             false -> {0, 0, 0, 0};
             {padding, Value} -> paddingto( string:tokens(Value, " "), [] )
            end,
+    Attr = {padding, Val},
     Node#node{ 
         attributes=lists:keyreplace(padding, 1, Node#node.attributes, Attr)}.
 
@@ -216,3 +221,8 @@ left(#view{x=Vx, cols=VCols}, {_, _, _, Left}, _, Cols) ->
 
 attr(Name, Node) ->
     lists:keyfind(Name, 1, Node#node.attributes).
+
+textof([], Acc) -> string:join(lists:reverse(Acc), ' ');
+textof([#text{content=Text}=C | Cs], Acc) ->
+    Fn = fun(Char, Str) -> string:strip(Str, both, Char) end,
+    textof(Cs, [lists:foldl(Fn, Text, [$ , $\n, $\r] ) | Acc]).

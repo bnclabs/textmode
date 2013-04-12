@@ -3,6 +3,7 @@
 %%! -noinput -smp disable
 
 -include_lib("ncurses/include/ncurses.hrl").
+-include_lib("ncurses/include/ncdom.hrl").
 
 main([What]) ->
     %{ExType, ExReason} = try play(What) catch X:Y -> {X,Y} end,
@@ -34,7 +35,8 @@ play(What) ->
 % Get xml dom.
 getdom() ->
     Node = ncdom:pagefile("/home/pratap/dev/textmode/sudoku/priv/3page.xml"),
-    io:format("~p~n", [Node]).
+    BoxNode = ncdom:boxify({0, 0, 30, 30}, Node),
+    io:format("~p~n", [BoxNode]).
 
 % Initialize
 curses() ->

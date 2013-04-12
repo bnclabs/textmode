@@ -5,6 +5,10 @@
             box
        }).
 
+-record(text, {
+            content
+       }).
+
 % box corresponds to a node after taking Node's margin attribute into account.
 -record(box, {
             y,
