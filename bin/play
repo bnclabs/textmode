@@ -5,17 +5,10 @@
 -include_lib("ncurses/include/ncurses.hrl").
 
 main([What]) ->
-    application:start(ncurses),
+    %{ExType, ExReason} = try play(What) catch X:Y -> {X,Y} end,
+    %io:format( "Exception type : ~p~n", [ExType] ),
+    %io:format( "Exception : ~p~n", [ExReason] ),
     play(What),
-    %try play(What)
-    %catch
-    %    X:Y ->
-    %        io:format( "Exception type : ~p~n", [X] ),
-    %        io:format( "Exception : ~p~n", [Y] );
-    %    _:_ ->
-    %        io:format( "Unknown exception" )
-    %end,
-    application:stop(ncurses),
     erlang:halt();
 
 main(_) ->
@@ -25,7 +18,9 @@ usage() ->
     io:format("usage: play\n"),
     erlang:halt(1).
 
+play("getdom") -> getdom();
 play(What) ->
+    application:start(ncurses),
     case What of
         "curses" -> curses();
         "addch" -> addch();
@@ -33,7 +28,13 @@ play(What) ->
         "addchstr" -> addchstr();
         "attrs" -> attrs();
         "coords" -> coords()
-    end.
+    end,
+    application:stop(ncurses).
+
+% Get xml dom.
+getdom() ->
+    Node = ncdom:pagefile("/home/pratap/dev/textmode/sudoku/priv/3page.xml"),
+    io:format("~p~n", [Node]).
 
 % Initialize
 curses() ->
