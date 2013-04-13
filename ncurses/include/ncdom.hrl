@@ -1,4 +1,13 @@
+-record(nodew, {
+            pproc,
+            cprocs,
+            node,
+            box,
+            view
+       }).
+
 -record(node, {
+            name,
             tag,
             attributes,
             content,

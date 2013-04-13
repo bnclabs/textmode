@@ -222,10 +222,11 @@
 % NCurses screen state
 -record( screen, {
             port,
+            rows,
+            cols,
             getch,
-            app,
-            win,
-            wdom
+            app,    % {appname, window_node, root_node}
+            apps
          }).
 
 % window description and state.

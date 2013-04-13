@@ -6,10 +6,15 @@
 -include_lib("ncurses/include/ncdom.hrl").
 
 main([What]) ->
-    %{ExType, ExReason} = try play(What) catch X:Y -> {X,Y} end,
-    %io:format( "Exception type : ~p~n", [ExType] ),
-    %io:format( "Exception : ~p~n", [ExReason] ),
-    play(What),
+    %Result =
+    %    try play(What)
+    %    catch
+    %            throw:Term -> Term;
+    %            exit:Reason -> {'EXIT',Reason};
+    %            error:Reason -> {'EXIT',{Reason,erlang:get_stacktrace()}}
+    %    end,
+    Result = play(What),
+    io:format("~p~n", [Result]),
     erlang:halt();
 
 main(_) ->
@@ -34,14 +39,15 @@ play(What) ->
 
 % Get xml dom.
 getdom() ->
-    Node = ncdom:pagefile("/home/pratap/dev/textmode/sudoku/priv/3page.xml"),
+    Node = ncdom:pagefile(
+                sudoku, "/home/pratap/dev/textmode/sudoku/priv/3play.xml"),
     BoxNode = ncdom:boxify({0, 0, 30, 30}, Node),
-    io:format("~p~n", [BoxNode]).
+    Buf = ncbuf:frameinit(30, 30),
+    BufNew = ncbuf:cornerize( ncbuf:frameborders(BoxNode, Buf), 30, 30 ),
+    io:format("~p~n", [BufNew]).
 
 % Initialize
 curses() ->
-    ncdrv:cbreak(),
-    ncdrv:noecho(),
     ncdrv:addstr( "NCurses version : " ),
     ncdrv:addstr( ncdrv:curses_version() ),
     ncdrv:addch($\n),
@@ -87,8 +93,6 @@ curses() ->
     ok.
 
 addch() ->
-    ncdrv:cbreak(),
-    ncdrv:noecho(),
     ncdrv:addstr( "Testing with cbreak / noecho - line buffered ... \n" ),
     ncdrv:addch(?CH(?A_UNDERLINE, 0, 97)),
     ncdrv:addch(97),
@@ -107,8 +111,6 @@ addch() ->
     ok.
 
 addstr() ->
-    %% Set attributes
-    ncdrv:cbreak(),
     ncdrv:noecho(),
     %% Write initial string...
     ncdrv:addstr("Testing add(n)str ...\n"),
@@ -126,9 +128,6 @@ addstr() ->
     ok.
 
 addchstr() ->
-    %% Set attributes
-    ncdrv:cbreak(),
-    ncdrv:noecho(),
     %% Write initial string...
     ncdrv:addstr("Testing addch(n)str ...\n"),
     ncdrv:addchstr(
@@ -147,8 +146,6 @@ addchstr() ->
     ok.
 
 attrs() ->
-    ncdrv:cbreak(),
-    ncdrv:noecho(),
     ncdrv:init_pairs(),
     ncdrv:addstr( "Testing cursor invisible ... \n" ),
     ncdrv:refresh(),
@@ -181,8 +178,6 @@ attrs() ->
     ok.
 
 coords() ->
-    ncdrv:cbreak(),
-    ncdrv:noecho(),
     ncdrv:addstr( io_lib:format("GETYX    : ~p~n", [ncdrv:getyx()] )),
     ncdrv:addstr( io_lib:format("GETBEGYX : ~p~n", [ncdrv:getbegyx()] )),
     ncdrv:addstr( io_lib:format("GETMAXYX : ~p~n", [ncdrv:getmaxyx()] )),

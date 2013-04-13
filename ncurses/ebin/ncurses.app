@@ -1,7 +1,7 @@
 {application, ncurses,
     [ {description,  "NCurses interface"},
       {vsn,          "0.1.0"},
-      {modules,      [ncurses, ncdrv, ncwin, ncbuf, ncdom, nc_examples]},
+      {modules,      [ncurses, ncdrv, ncnode, ncbuf, ncdom, nc_examples]},
       {registered,   [ncurses, ncdrv]},
       {mod,          {ncurses, []}},
       {env,          [{childspec,

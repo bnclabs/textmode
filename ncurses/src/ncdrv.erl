@@ -11,8 +11,8 @@
 ]).
 
 % Module API
--export([start_link/1, win/0, win/1, wdom/0, wdom/1, app/0, app/1, 
-         trapexit/0]).
+-export([start_link/1, current_app/0, current_app/1, mainbox/0, 
+         register_app/1]).
 
 % NCurses API
 -export([
@@ -88,17 +88,16 @@
 start_link(Args) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, Args, []).
 
-win() -> gen_server:call(?MODULE, win, infinity).
-win(Win) -> gen_server:call(?MODULE, {win, Win}, infinity).
-app() -> gen_server:call(?MODULE, app, infinity).
-app(App) -> gen_server:call(?MODULE, {app, App}, infinity).
-wdom() -> gen_server:call(?MODULE, wdom, infinity).
-wdom(WDom) -> gen_server:call(?MODULE, {wdom, WDom}, infinity).
+current_app() ->
+    gen_server:call(?MODULE, current_app, infinity).
+current_app(App) ->
+    gen_server:call(?MODULE, {current_app, App}, infinity).
 
-trapexit() ->
-    process_flag(trap_exit, true),
-    erlang:link(erlang:whereis(?MODULE)),
-    receive {'EXIT', _From, Reason} -> Reason end.
+mainbox() ->
+    gen_server:call(?MODULE, mainbox, infinity).
+
+register_app(App) -> 
+    gen_server:call(?MODULE, {register_app, App}, infinity).
 
 %---- NCurses API
 
@@ -348,7 +347,8 @@ init(_Args) ->
             ok = do_call(Port, ?WREFRESH, 0),
             ok = do_call(Port, ?START_COLOR),
             init_pairs( Port, do_call(Port, ?HAS_COLORS )),
-            {ok, #screen{ port = Port }};
+            {Rows, Cols} = do_call(Port, ?GETMAXYX),
+            {ok, #screen{ rows=Rows, cols=Cols, port = Port }};
 
         {error, ErrorCode} ->
             exit({driver_error, erl_ddll:format_error(ErrorCode)})
@@ -357,7 +357,7 @@ init(_Args) ->
 
 handle_call({curses, App, ?GETCH, _}, From, #screen{getch=undefined}=State) ->
     case State#screen.app of
-        App -> {noreply, State#screen{getch=From}};
+        {App, _, _} -> {noreply, State#screen{getch=From}};
         _ -> {reply, false_context, State}
     end;
 
@@ -366,43 +366,41 @@ handle_call({curses, _App, ?GETCH, _}, _From, State) ->
 
 handle_call({curses, App, Cmd, Args}, _From, State) ->
     case State#screen.app of
-        App -> {reply, do_call(State#screen.port, Cmd, Args), State};
+        {App, _, _} -> {reply, do_call(State#screen.port, Cmd, Args), State};
         _ -> {reply, false_context, State}
     end;
 
-handle_call(app, _From, #screen{app=App}=State) ->
+handle_call(current_app, _From, #screen{app=App}=State) ->
     {reply, App, State};
 
-handle_call({app, App}, _From, State) ->
+handle_call({current_app, App}, _From, State) ->
     {reply, App, State#screen{app=App}};
 
+handle_call(mainbox, _From, #screen{rows=Rows, cols=Cols}=State) ->
+    {reply, {0, 0, Rows, Cols}, State};
 
-handle_call(win, _From, #screen{win=Win}=State) ->
-    {reply, Win, State};
-
-handle_call({win, Win}, _From, State) ->
-    {reply, Win, State#screen{win=Win}};
-
-handle_call(wdom, _, #screen{wdom=WDom}=State) ->
-    {reply, WDom, State};
-
-handle_call({wdom, WDom}, _, State) ->
-    {reply, WDom, State#screen{wdom=WDom}}.
+handle_call({register_app, App}, _From, #screen{apps=Apps}=State) ->
+    {reply, ok, State#screen{apps=[App | Apps]}}.
 
 
 handle_info({_Port, {data, Binary}}, #screen{getch=undefined}=State) ->
-    State#screen.win ! {data, binary_to_term(Binary)},
-    {noreply, State};
+    %element(2, State#screen.app) ! {data, binary_to_term(Binary)},
+    %{noreply, State};
+    {stop, done, State};
 
 handle_info({_Port, {data, Binary}}, State) ->
-    gen_server:reply(State#screen.getch, binary_to_term(Binary)),
-    {noreply, State#screen{ getch = undefined }}.
+    %gen_server:reply(State#screen.getch, binary_to_term(Binary)),
+    %{noreply, State#screen{ getch = undefined }}.
+    {stop, done, State}.
+
 
 handle_cast(_, State) ->
     {noreply, State}.
 
+
 code_change(_, State, _) ->
     {noreply, State}.
+
 
 terminate(_Reason, State) ->
     do_call(State#screen.port, ?ENDWIN),

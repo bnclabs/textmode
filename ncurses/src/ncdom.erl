@@ -1,79 +1,114 @@
 -module(ncdom).
 -author('prataprc@gmail.com').
 
--export([pagefile/1, boxify/2]).
+% Module API
+-export([pagefile/2, boxify/2, textof/2]).
 
 -include("ncdom.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
-pagefile(XmlFile) ->
-    {Node, _Misc} = xmerl_scan:file( XmlFile ),
-    xmltag(Node).
+%---- Module API
+
+pagefile(Appname, XmlFile) ->
+    Node =
+        case xmerl_scan:file( XmlFile ) of
+            {error, Misc} -> erlang:display(Misc); % TODO : log error
+            {Node_, _Misc} -> Node_
+        end,
+    PagePath = filename:join(["ncapp://",Appname,filename:basename(XmlFile)]),
+    xmltag(PagePath, Node).
 
 
-xmltag(Node) ->
-    Tag = Node#xmlElement.name,
-    Attrs = xmlattrs(Node#xmlElement.attributes, []),
-    Content = xmlcontent(Node#xmlElement.content, []),
-    #node{tag=Tag, attributes=Attrs, content=Content}.
+% First argument describes the view-port of containing node of Node.
+boxify({Y, X, Rows, Cols}, NodeP) ->
+    ViewPort = #view{y=Y, x=X, rows=Rows, cols=Cols},
+
+    Yb = case attr(y, NodeP) of false -> auto; {y, Y_} -> Y_ end,
+    Xb = case attr(x, NodeP) of false -> auto; {x, X_} -> X_ end,
+    Brows = case attr(rows, NodeP) of false -> Rows; {rows, R_} -> R_ end,
+    Bcols = case attr(cols, NodeP) of false -> Cols; {cols, C_} -> C_ end,
+
+    Box_ = #box{y=Yb, x=Xb, rows=Brows, cols=Bcols},
+    Node = padding( border( margin( NodeP#node{box=Box_} ))),
+    Node1 = box(ViewPort, Node, {Yb, Xb, Brows, Bcols}),
+    Content = boxify(Node1#node.box#box.view, Node#node.content, []),
+    Node1#node{content=Content}.
+
+
+textof([], Acc) -> string:join(lists:reverse(Acc), ' ');
+textof([#text{content=Text} | Cs], Acc) ->
+    Fn = fun(Char, Str) -> string:strip(Str, both, Char) end,
+    textof(Cs, [lists:foldl(Fn, Text, [$ , $\n, $\r] ) | Acc]).
+
+
+%---- internal functions
+xmltag(PagePath, E) ->
+    Node = 
+        #node{
+            tag=E#xmlElement.name,
+            attributes=xmlattrs(E#xmlElement.attributes, []),
+            content=xmlcontent(PagePath, E#xmlElement.content, [])
+        },
+    Node#node{name=nodename(PagePath, Node)}.
 
 
 xmlattrs([], Acc) -> lists:reverse(Acc);
 xmlattrs([#xmlAttribute{name=Name, value=Value} | As], Acc) ->
-    Value =
+    Val =
         case Name of
-            "y" -> list_to_integer(Value);
-            "x" -> list_to_integer(Value);
+            y -> list_to_integer(Value);
+            x -> list_to_integer(Value);
+            rows -> list_to_integer(Value);
+            cols -> list_to_integer(Value);
             _ -> Value
         end,
-    xmlattrs(As, [{Name, Value} | Acc]).
+    xmlattrs(As, [{Name, Val} | Acc]).
 
 
-xmlcontent([], Acc) -> lists:reverse(Acc);
-xmlcontent([#xmlText{value=Value} | Cs], Acc) -> 
-    xmlcontent(Cs, [#text{content=Value} | Acc]);
-xmlcontent([#xmlElement{}=E | Cs], Acc) ->
-    xmlcontent(Cs, [xmltag(E) | Acc]).
+xmlcontent(_, [], Acc) -> lists:reverse(Acc);
+xmlcontent(PagePath, [#xmlText{value=Value} | Cs], Acc) -> 
+    xmlcontent(PagePath, Cs, [#text{content=Value} | Acc]);
+xmlcontent(PagePath, [#xmlElement{}=E | Cs], Acc) ->
+    xmlcontent(PagePath, Cs, [xmltag(PagePath, E) | Acc]).
 
 
-boxify({Y, X, Rows, Cols}, Node) ->
-    ViewPort = #view{y=Y, x=X, rows=Rows, cols=Cols},
-    Box_ = #box{y=Y, x=X, rows=Rows, cols=Cols},
-    Node = padding( border( margin( Node, Box_), Box_), Box_),
-    Box = box( ViewPort, Node, {Y, X, Rows, Cols} ),
-    Content = boxify(Box#box.view, Node#node.content, []),
-    Node#node{content=Content, box=Box}.
+nodename(PagePath, Node) ->
+    case attr(id, Node) of
+        false -> PagePath; % TODO: log error
+        {id, Id} -> filename:join([PagePath, Id])
+    end.
+
 
 boxify(_, [], Acc) -> lists:reverse(Acc);
+boxify(ViewPort, [#text{}=CNode | CNodes], Acc) ->
+    boxify(ViewPort, CNodes, [CNode | Acc]);
 boxify(ViewPort, [CNode | CNodes], Acc) ->
-    #view{y=Y_, x=X_, rows=Rows, cols=Cols} = ViewPort,
-    Y = case attr(y, CNode) of false -> Y_; Yo -> Yo end,
-    X = case attr(x, CNode) of false -> X_; Xo -> Xo end,
+    #view{y=Y, x=X, rows=Rows, cols=Cols} = ViewPort,
     boxify(ViewPort, CNodes, [boxify({Y, X, Rows, Cols}, CNode) | Acc]).
     
 box(ViewPort, Node, {Y, X, Rows, Cols}) ->
-    io:format("~p~n", [Node]),
-    {Margin, Border, Padding} = 
-                {attr(margin, Node), attr(border, Node), attr(padding, Node)},
-    #margin{top=Mt, right=Mr, bottom=Mb, left=Ml} = Margin,
+    #box{margin=Margin, border=Border, padding=Padding} = Node#node.box,
+    {Mt, Mr, Mb, Ml} = Margin,
     #view{y=Vy, x=Vx, rows=VRows, cols=VCols} = ViewPort,
-    {Top, BRows} =
+    {ok, Top, BRows} =
         case Y of
             auto -> top(ViewPort, {Mt, Mr, Mb, Ml}, Rows, Cols);
-            _ -> {Vy+Y, if (VRows-Y) >= Rows -> Rows; true -> VRows-Y end}
+            _ -> {ok, Vy+Y, if (VRows-Y) >= Rows -> Rows; true -> VRows-Y end}
         end,
-    {Left, BCols} =
+    {ok, Left, BCols} =
         case X of
             auto -> left(ViewPort, {Mt, Mr, Mb, Ml}, Rows, Cols);
-            _ -> {Vx+X, if (VCols-X) >= Cols -> Cols; true -> VCols-X end}
+            _ -> {ok, Vx+X, if (VCols-X) >= Cols -> Cols; true -> VCols-X end}
         end,
     Box = #box{y=Top, x=Left, rows=BRows, cols=BCols, margin=Margin,
                border=Border, padding=Padding},
-    Box#box{view=view(Box)}.
+    view( borderize(Node#node{box=Box}) ).
 
 
-view(Box) ->
-    viewpadding(viewborder(Box), Box#box.padding).
+view(Node) ->
+    Box = Node#node.box,
+    View = viewpadding( viewborder(Box), Box#box.padding ),
+    Node#node{ box=Box#box{view=View} }.
 
 
 viewborder(#box{y=Y, x=X, rows=Rows, cols=Cols, border=Border}) ->
@@ -94,84 +129,82 @@ viewbl([_ | []], {Y, X, Rs, Cs}) -> {Y, X+1, Rs, Cs-1}.
 
 
 viewpadding(#view{rows=Vrows, cols=Vcols}=View, Padding) ->
-    #padding{top=Pt, right=Pr, bottom=Pb, left=Pl} = Padding,
-    {Top, VRows} = top(View, {Pt,Pr,Pb,Pl}, Vrows, Vcols),
-    {Left, VCols} = left(View, {Pt,Pr,Pb,Pl}, Vrows, Vcols),
+    {ok, Top, VRows} = top(View, Padding, Vrows, Vcols),
+    {ok, Left, VCols} = left(View, Padding, Vrows, Vcols),
     View#view{y=Top, x=Left, rows=VRows, cols=VCols}.
 
 
-margin(Node, _Box) ->
+margin(Node) ->
     Val  = case attr(margin, Node) of
                 false -> {0, 0, 0, 0};
                 {margin, Value} -> marginto( string:tokens(Value, " "), [] )
            end,
-    Attr = {margin, Val},
-    Node#node{
-        attributes=lists:keyreplace(margin, 1, Node#node.attributes, Attr)}.
+    Node#node{ box=Node#node.box#box{margin=Val} }.
 
 marginto([], Acc) -> list_to_tuple( lists:reverse( Acc ));
 marginto(["auto" | Ls], Acc) -> marginto(Ls, [auto | Acc]);
 marginto([X | Ls], Acc) -> marginto(Ls, [list_to_integer(X) | Acc]).
 
 
-border(Node, Box) ->
+border(Node) ->
     B  = case attr(border, Node) of
-            false -> {none, none, none, none};
-            {border, Value} -> borderto(all, string:tokens(Value, " "), Box)
+            false ->
+                {none, none, none, none};
+            {border, Value} ->
+                BB = borderval( string:tokens( Value, " " )),
+                {BB, BB, BB, BB}
          end,
-    Fn = fun({I, Attr, Pref}, Acc) ->
+    Fn = fun({I, Attr}, Acc) ->
             case attr(Attr, Node) of
                 false -> Acc;
                 {Attr, V} ->
-                    E = borderto(Pref, string:tokens(V, " "), Box),
-                    erlang:setelement(I, Acc, E)
+                    erlang:setelement(
+                        I, Acc, borderval( string:tokens( V, " " )))
             end
          end,
-    LAttrs = [ {1, bordertop, top}, {2, borderright, right},
-               {3, borderbottom, bottom}, {4, borderleft, left} ],
+    LAttrs = [ {1, 'border-top'}, {2, 'border-right'},
+               {3, 'border-bottom'}, {4, 'border-left'} ],
     Attr = {border, lists:foldl( Fn, B, LAttrs)},
     Node#node{ 
-        attributes=lists:keyreplace(border, 1, Node#node.attributes, Attr)}.
+        attributes=lists:keystore(border, 1, Node#node.attributes, Attr)}.
+
+borderval([Sz, Ch, Cl]) ->
+    {list_to_integer(Sz), list_to_atom(Ch), list_to_atom(Cl)}.
+
+borderize(#node{box=Box}=Node) ->
+    {border, {Tb, Rb, Bb, Lb}} = attr(border, Node),
+    Border = { borderto(top, Tb, Box), borderto(right, Rb, Box),
+               borderto(bottom, Bb, Box), borderto(left, Lb, Box)},
+    Node#node{ box=Node#node.box#box{border=Border} }.
 
 
-borderto(all, ["0", _, _], _) -> {none, none, none, none};
-borderto(all, ["1", Char, Color], Box) ->
-    #box{y=Y, x=X, rows=Rows, cols=Cols} = Box,
-    { {Y,        X,        Cols, list_to_atom(Char), list_to_atom(Color)},
-      {Y,        X+Cols-1, Rows, list_to_atom(Char), list_to_atom(Color)},
-      {Y+Rows-1, X+Cols-1, Cols, list_to_atom(Char), list_to_atom(Color)},
-      {Y+Rows-1, X,        Rows, list_to_atom(Char), list_to_atom(Color)}
-    };
+borderto(top, none, _) -> none;
+borderto(top, {0, _, _}, _) -> none;
+borderto(top, {1, Char, Color}, #box{y=Y, x=X, cols=Cols})->
+    {Y, X, Cols, Char, Color};
 
-borderto(top, ["0", _, _], _) -> none;
-borderto(top, ["1", Char, Color], Box) ->
-    #box{y=Y, x=X, cols=Cols} = Box,
-    {Y, X, Cols, list_to_atom(Char), list_to_atom(Color)};
+borderto(right, none, _) -> none;
+borderto(right, {0, _, _}, _) -> none;
+borderto(right, {1, Char, Color}, #box{y=Y, x=X, rows=Rows, cols=Cols})->
+    {Y, X+Cols-1, Rows, Char, Color};
 
-borderto(right, ["0", _, _], _) -> none;
-borderto(right, ["1", Char, Color], Box) ->
-    #box{y=Y, x=X, rows=Rows, cols=Cols} = Box,
-    {Y, X+Cols-1, Rows, list_to_atom(Char), list_to_atom(Color)};
+borderto(bottom, none, _) -> none;
+borderto(bottom, {0, _, _}, _) -> none;
+borderto(bottom, {1, Char, Color}, #box{y=Y, x=X, rows=Rows, cols=Cols})->
+    {Y+Rows-1, X+Cols-1, Cols, Char, Color};
 
-borderto(bottom, ["0", _, _], _) -> none;
-borderto(bottom, ["1", Char, Color], Box) ->
-    #box{y=Y, x=X, rows=Rows, cols=Cols} = Box,
-    {Y+Rows-1, X+Cols-1, Cols, list_to_atom(Char), list_to_atom(Color)};
-
-borderto(left, ["0", _, _], _) -> none;
-borderto(left, ["1", Char, Color], Box) ->
-    #box{y=Y, x=X, rows=Rows} = Box,
-    {Y+Rows-1, X, Rows, list_to_atom(Char), list_to_atom(Color)}.
+borderto(left, none, _) -> none;
+borderto(left, {0, _, _}, _) -> none;
+borderto(left, {1, Char, Color}, #box{y=Y, x=X, rows=Rows})->
+    {Y+Rows-1, X, Rows, Char, Color}.
 
 
-padding(Node, _Box) ->
+padding(Node) ->
     Val  = case attr(padding, Node) of
             false -> {0, 0, 0, 0};
             {padding, Value} -> paddingto( string:tokens(Value, " "), [] )
            end,
-    Attr = {padding, Val},
-    Node#node{ 
-        attributes=lists:keyreplace(padding, 1, Node#node.attributes, Attr)}.
+    Node#node{ box=Node#node.box#box{padding=Val} }.
 
 paddingto([], Acc) -> list_to_tuple( lists:reverse( Acc ));
 paddingto(["auto" | Ls], Acc) -> paddingto(Ls, [auto | Acc]);
@@ -179,7 +212,7 @@ paddingto([X | Ls], Acc) -> paddingto(Ls, [list_to_integer(X) | Acc]).
 
 
 top(#view{y=0, x=0}, {Top, _, _, _}, _, _) when Top < 0 ->
-    {error, "margin cannot be negative for outermost box."};
+    {error, "margin cannot be negative for outermost box, top."};
     % TODO : Log here
 
 top(#view{y=Vy, rows=VRows}, _, Rows, _) when VRows < Rows ->
@@ -193,14 +226,12 @@ top(#view{y=Vy, rows=VRows}, {auto, _, Bottom, _}, Rows, _) ->
     Top = if Diff < 0 -> Vy; true -> Vy+Diff end,
     {ok, Top, Rows};
 
-top(#view{y=Vy, rows=VRows}, {Top, _, _, _}, Rows, _) ->
-    Diff = VRows - Rows,
-    BTop = if Diff < Top -> Vy+Diff; true -> Vy+Top end,
-    {ok, BTop, Rows}.
+top(#view{y=Vy}, {Top, _, _, _}, Rows, _) ->
+    {ok, Vy+Top, Rows}.
 
 
 left(#view{y=0, x=0}, {_, _, _, Left}, _, _) when Left < 0 ->
-    {error, "margin cannot be negative for outermost box."};
+    {error, "margin cannot be negative for outermost box, left."};
     % TODO : Log here
 
 left(#view{x=Vx, cols=VCols}, _, _, Cols) when VCols < Cols ->
@@ -214,15 +245,9 @@ left(#view{x=Vx, cols=VCols}, {_, Right, _, auto}, _, Cols) ->
     Left = if Diff < 0 -> Vx; true -> Vx+Diff end,
     {ok, Left, Cols};
 
-left(#view{x=Vx, cols=VCols}, {_, _, _, Left}, _, Cols) ->
-    Diff = VCols - Cols,
-    BLeft = if Diff < Left -> Vx+Diff; true -> Vx+Left end,
-    {ok, BLeft, Cols}.
+left(#view{x=Vx}, {_, _, _, Left}, _, Cols) ->
+    {ok, Vx+Left, Cols}.
 
 attr(Name, Node) ->
     lists:keyfind(Name, 1, Node#node.attributes).
 
-textof([], Acc) -> string:join(lists:reverse(Acc), ' ');
-textof([#text{content=Text}=C | Cs], Acc) ->
-    Fn = fun(Char, Str) -> string:strip(Str, both, Char) end,
-    textof(Cs, [lists:foldl(Fn, Text, [$ , $\n, $\r] ) | Acc]).
