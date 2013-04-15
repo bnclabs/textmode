@@ -23,4 +23,8 @@
 * In .app files, provide depending modules, registered process and included
   applications details.
 
+* How to suppress warning messages like,
+
+    Warning: function node_handler/1 is unused
+
 vim: filetype=rst:
