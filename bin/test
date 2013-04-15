@@ -27,24 +27,35 @@ usage() ->
 play("getdom") -> getdom();
 play(What) ->
     application:start(ncurses),
+    ncdrv:current_app({escript, none, none}),
     case What of
         "curses" -> curses();
         "addch" -> addch();
         "addstr" -> addstr();
         "addchstr" -> addchstr();
         "attrs" -> attrs();
-        "coords" -> coords()
+        "coords" -> coords();
+        "ncdom" -> ncdom()
     end,
     application:stop(ncurses).
 
 % Get xml dom.
+ncdom() ->
+    Node = ncdom:pagefile(
+                sudoku, "/home/pratap/dev/textmode/sudoku/priv/3play.xml"),
+    RootNode = ncdom:boxify({0, 0, 39, 56}, Node),
+    Buf = ncbuf:cursor_frames(0, 0, 39, 56, RootNode),
+    ncdrv:getch(),
+    ok.
+
 getdom() ->
     Node = ncdom:pagefile(
                 sudoku, "/home/pratap/dev/textmode/sudoku/priv/3play.xml"),
-    BoxNode = ncdom:boxify({0, 0, 30, 30}, Node),
-    Buf = ncbuf:frameinit(30, 30),
-    BufNew = ncbuf:cornerize( ncbuf:frameborders(BoxNode, Buf), 30, 30 ),
-    io:format("~p~n", [BufNew]).
+    RootNode = ncdom:boxify({0, 0, 39, 56}, Node),
+    Buf = ncbuf:cursor_frames(0, 0, 39, 56, RootNode),
+    io:format("~p~n", [Buf]),
+    ok.
+
 
 % Initialize
 curses() ->
@@ -99,14 +110,10 @@ addch() ->
     ncdrv:addch(4,5,97),
     ncdrv:addch(4,5,?CH(?A_UNDERLINE, 0, 97)), % Cursor will be at (4,6)
     ncdrv:addch($\n),
-    ncdrv:refresh(),
-    Line1 = intill(10, []),
-    timer:sleep(1000),
-    ncdrv:addstr(Line1),
     cursyx(),
     ncdrv:addch($\n),
+    ncdrv:addstr("end\n"),
     ncdrv:refresh(),
-
     ncdrv:getch(),
     ok.
 
@@ -186,16 +193,16 @@ coords() ->
     ncdrv:getch(),
     ok.
 
-intill(Expect, Expect, Acc) ->
-    ncdrv:echochar(Expect),
-    lists:reverse(Acc);
-intill(Expect, Val, Acc) ->
-    ncdrv:echochar(Val),
-    Val_ = ncdrv:getch(), 
-    intill(Expect, Val_, [Val | Acc]).
-
-intill(Expect, Acc) ->
-    intill(Expect, ncdrv:getch(), Acc).
+%intill(Expect, Expect, Acc) ->
+%    ncdrv:echochar(Expect),
+%    lists:reverse(Acc);
+%intill(Expect, Val, Acc) ->
+%    ncdrv:echochar(Val),
+%    Val_ = ncdrv:getch(), 
+%    intill(Expect, Val_, [Val | Acc]).
+%
+%intill(Expect, Acc) ->
+%    intill(Expect, ncdrv:getch(), Acc).
 
 cursyx() ->
     ncdrv:addstr( io_lib:format( "~p", [ncdrv:getyx()] )).

@@ -225,26 +225,22 @@
             rows,
             cols,
             getch,
-            app,    % {appname, window_node, root_node}
-            apps
+            onquit,
+            app={none, none, none}, % {appname, window_node, root_node}
+            apps=[]         % list of {appname, root_node}
          }).
 
-% window description and state.
--record( charevent, {
-            char
+-record( evtsys, {
+            channels,   % list of channels record
+            appdoms     % { app_path, root_node }
          }).
 
-% buffer description and state.
--record( buftbl, {
+-record( channel, {
+            name,       % name of the channel
+            subscribers % [ {Ref, M, F, A}, {Ref, Proc}, ...]
          }).
 
-% buffer description and state.
--record( bufline, {
-         }).
-
-% token description
--record( toktbl, {
-         }).
-
--record( tokline, { column, attr
+-record( event, {
+            name,       % can be any erlang term.
+            value       % event payload
          }).

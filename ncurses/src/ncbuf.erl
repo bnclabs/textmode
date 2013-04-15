@@ -2,10 +2,20 @@
 -author('prataprc@gmail.com').
 
 % Module API
--export([frameinit/2, frameborders/2, cornerize/3, bordercolor/1]).
+-export([cursor_frames/5, bordercolor/1]).
 
 -include("ncurses.hrl").
 -include("ncdom.hrl").
+
+
+cursor_frames(_Y, _X, Rows, Cols, RootNode) ->
+    Buf = cornerize( frameborders(RootNode, frameinit(Rows,Cols)), Rows, Cols ),
+    BufL = lists:map( fun erlang:tuple_to_list/1, tuple_to_list(Buf) ),
+    [ ncdrv:addchstr(R, 0, S) 
+      || {R,S} <- lists:zip( lists:seq(0,Rows-1), BufL ) ],
+    ncdrv:refresh(),
+    Buf.
+
 
 frameinit(Rows, Cols) ->
     erlang:list_to_tuple( lists:duplicate(Rows, erlang:make_tuple(Cols, $ ))).
@@ -34,7 +44,7 @@ cornerize(Buf, Yb, Xb, Rows, Cols) ->
         $* -> 
             Ch = borderchar( getchar(Buf, Yb-1, Xb), getchar(Buf, Yb, Xb+1),
                              getchar(Buf, Yb+1, Xb), getchar(Buf, Yb, Xb-1) ),
-            cornerize(setchar(Buf, Yb, Xb, Ch), Yb, Xb+1, Rows, Cols);
+            cornerize(setchar(Buf, {Yb, Xb}, Ch), Yb, Xb+1, Rows, Cols);
         _ ->
             cornerize(Buf, Yb, Xb+1, Rows, Cols)
     end.
@@ -55,13 +65,13 @@ frameborder(bottom, none, Buf) -> Buf;
 frameborder(bottom, {_, _, 0, _, _}, Buf) -> Buf;
 frameborder(bottom, {Y, X, Len, Ch, Cl}, Buf) ->
     frameborder(
-        bottom, {Y, X+1, Len-1, Ch, Cl}, setchar(Buf, Y+1, X+1, ?ACS_HLINE) );
+        bottom, {Y, X-1, Len-1, Ch, Cl}, setchar(Buf, Y+1, X+1, ?ACS_HLINE) );
 
 frameborder(left, none, Buf) -> Buf;
 frameborder(left, {_, _, 0, _, _}, Buf) -> Buf;
 frameborder(left, {Y, X, Len, Ch, Cl}, Buf) ->
     frameborder(
-        left, {Y+1, X, Len-1, Ch, Cl}, setchar(Buf, Y+1, X+1, ?ACS_VLINE) ).
+        left, {Y-1, X, Len-1, Ch, Cl}, setchar(Buf, Y+1, X+1, ?ACS_VLINE) ).
 
 
 getchar(Buf, Y, X) ->
@@ -73,9 +83,10 @@ getchar(Buf, Y, X) ->
 
 setchar(Buf, Y, X, Char) -> 
     case getchar(Buf, Y, X) of
-        none -> Buf;
         $  -> setchar(Buf, {Y,X}, Char);
-        Char -> setchar(Buf, {Y,X}, Char);
+        Char -> Buf;
+        $* -> Buf;
+        none -> Buf;
         _ -> setchar(Buf, {Y,X}, $*)
     end.
 

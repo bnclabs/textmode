@@ -15,7 +15,8 @@ pagefile(Appname, XmlFile) ->
             {error, Misc} -> erlang:display(Misc); % TODO : log error
             {Node_, _Misc} -> Node_
         end,
-    PagePath = filename:join(["ncapp://",Appname,filename:basename(XmlFile)]),
+    PagePath = "ncapp://" ++ 
+               filename:join([Appname,filename:basename(XmlFile)]),
     xmltag(PagePath, Node).
 
 
@@ -49,7 +50,10 @@ xmltag(PagePath, E) ->
             attributes=xmlattrs(E#xmlElement.attributes, []),
             content=xmlcontent(PagePath, E#xmlElement.content, [])
         },
-    Node#node{name=nodename(PagePath, Node)}.
+    Node#node{
+        pagepath=PagePath,
+        name=nodename(PagePath, Node)
+    }.
 
 
 xmlattrs([], Acc) -> lists:reverse(Acc);
@@ -75,7 +79,7 @@ xmlcontent(PagePath, [#xmlElement{}=E | Cs], Acc) ->
 nodename(PagePath, Node) ->
     case attr(id, Node) of
         false -> PagePath; % TODO: log error
-        {id, Id} -> filename:join([PagePath, Id])
+        {id, Id} -> PagePath ++ "#" ++ Id
     end.
 
 

@@ -8,7 +8,6 @@ erl -noinput -smp disable \
     -sasl sasl_error_logger "{file, \"$CONFIGDIR/logs/sudoku.log\"}" \
     -kernel error_logger "{file, \"$CONFIGDIR/logs/textmode.log\"}" \
     -boot start_sasl \
-    -s sudoku_curses start \
-    -extra ncurses
+    -s sudoku ncstart
 
 #vim :filetype=shell:

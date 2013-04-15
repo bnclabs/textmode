@@ -1,6 +1,8 @@
 -record(nodew, {
             pproc,
             cprocs,
+            pid,
+            rootnode,
             node,
             box,
             view
@@ -8,6 +10,8 @@
 
 -record(node, {
             name,
+            pagepath,
+            pid,
             tag,
             attributes,
             content,

@@ -17,4 +17,10 @@
 * gen_server:start_link does not fail with error messages. It passes the error
   to supervisor that simly shutsdown.
 
+* There are two log file configuration possible, one through `sasl` application
+  and the other via `kernel` application.
+
+* In .app files, provide depending modules, registered process and included
+  applications details.
+
 vim: filetype=rst:

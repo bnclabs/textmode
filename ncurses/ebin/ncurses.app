@@ -11,6 +11,12 @@
                               permanent,
                               5000,
                               worker,
+                              [ncdrv]},
+                             {ncchan,
+                              {ncchan, start_link, [[]]},
+                              permanent,
+                              5000,
+                              worker,
                               [ncdrv]}
                             ]}}
                      ]},

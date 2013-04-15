@@ -12,7 +12,7 @@
 
 % Module API
 -export([start_link/1, current_app/0, current_app/1, mainbox/0, 
-         register_app/1]).
+         register_app/1, register_onquit/1]).
 
 % NCurses API
 -export([
@@ -64,9 +64,10 @@
 ]).
 
 % Utility functions
--export([ch/2, chattr/1, chcolor/1, display/1]).
+-export([ch/2, chattr/1, chcolor/1]).
 
 -include("ncurses.hrl").
+-include("ncdom.hrl").
 -include("ncommands.hrl").
 
 -define(INT(Val),
@@ -98,6 +99,9 @@ mainbox() ->
 
 register_app(App) -> 
     gen_server:call(?MODULE, {register_app, App}, infinity).
+
+register_onquit(Pid) -> 
+    gen_server:call(?MODULE, {register_onquit, Pid}, infinity).
 
 %---- NCurses API
 
@@ -313,7 +317,7 @@ box(Win, Vert, Horz) -> ncall({?BOX, {Win, Vert, Horz}}).
 
 
 ncall({Cmd, Arg}, Timeout) ->
-    {ok, App} = application:get_application(),
+    App = case application:get_application() of {ok, A} -> A; X -> X end,
     gen_server:call(?MODULE, {curses, App, Cmd, Arg}, Timeout).
 
 ncall(Request) -> ncall(Request, infinity).
@@ -328,15 +332,9 @@ chattr(Attr) ->
 chcolor(Color) ->
     fun(Char)-> Color bor Char end.
 
-display(Term) ->
-    addstr( io_lib:format( "~p ~n", [Term] )),
-    refresh(),
-    ok.
-
 % Behaviour Callbacks
 init(_Args) ->
     process_flag(trap_exit, true),
-
     case load_driver() of
         ok ->
             Port = erlang:open_port({spawn, "ncdrv"}, [binary]),
@@ -346,9 +344,9 @@ init(_Args) ->
             ok = do_call(Port, ?WERASE, 0),
             ok = do_call(Port, ?WREFRESH, 0),
             ok = do_call(Port, ?START_COLOR),
-            init_pairs( Port, do_call(Port, ?HAS_COLORS )),
-            {Rows, Cols} = do_call(Port, ?GETMAXYX),
-            {ok, #screen{ rows=Rows, cols=Cols, port = Port }};
+            init_pairs( Port, do_call( Port, ?HAS_COLORS )),
+            {Rows, Cols} = do_call(Port, ?GETMAXYX, ?W_STDSCR),
+            {ok, #screen{ rows=Rows, cols=Cols, port=Port }};
 
         {error, ErrorCode} ->
             exit({driver_error, erl_ddll:format_error(ErrorCode)})
@@ -357,6 +355,7 @@ init(_Args) ->
 
 handle_call({curses, App, ?GETCH, _}, From, #screen{getch=undefined}=State) ->
     case State#screen.app of
+        {escript, _, _} -> {noreply, State#screen{getch=From}};
         {App, _, _} -> {noreply, State#screen{getch=From}};
         _ -> {reply, false_context, State}
     end;
@@ -364,49 +363,59 @@ handle_call({curses, App, ?GETCH, _}, From, #screen{getch=undefined}=State) ->
 handle_call({curses, _App, ?GETCH, _}, _From, State) ->
     {reply, busy, State};
 
-handle_call({curses, App, Cmd, Args}, _From, State) ->
+handle_call({curses, App, Cmd, Args}, _From, #screen{port=Port}=State) ->
     case State#screen.app of
-        {App, _, _} -> {reply, do_call(State#screen.port, Cmd, Args), State};
+        {escript, _, _} -> {reply, do_call(Port, Cmd, Args), State};
+        {App, _, _} -> {reply, do_call(Port, Cmd, Args), State};
         _ -> {reply, false_context, State}
     end;
 
 handle_call(current_app, _From, #screen{app=App}=State) ->
     {reply, App, State};
 
-handle_call({current_app, App}, _From, State) ->
-    {reply, App, State#screen{app=App}};
+handle_call({current_app, Appname}, _From, State) ->
+    {Appname, RootNode}=App = lists:keyfind(Appname, 1, State#screen.apps),
+    {reply, App, State#screen{app={Appname, RootNode, RootNode}}};
 
 handle_call(mainbox, _From, #screen{rows=Rows, cols=Cols}=State) ->
     {reply, {0, 0, Rows, Cols}, State};
 
-handle_call({register_app, App}, _From, #screen{apps=Apps}=State) ->
-    {reply, ok, State#screen{apps=[App | Apps]}}.
+handle_call({register_app, App}, _From, State) ->
+    {reply, ok, State#screen{apps=[App | State#screen.apps]}}.
 
 
 handle_info({_Port, {data, Binary}}, #screen{getch=undefined}=State) ->
-    %element(2, State#screen.app) ! {data, binary_to_term(Binary)},
-    %{noreply, State};
-    {stop, done, State};
+    case binary_to_term(Binary) of
+        3 -> init:stop(0);
+        _ ->
+            case State#screen.app of
+                {_, none, none} -> io:format("Got an input");
+                {_, #node{}, _} -> io:format("Got an input in app")
+            end
+    end,
+    {noreply, State};
 
 handle_info({_Port, {data, Binary}}, State) ->
-    %gen_server:reply(State#screen.getch, binary_to_term(Binary)),
-    %{noreply, State#screen{ getch = undefined }}.
-    {stop, done, State}.
+    gen_server:reply(State#screen.getch, binary_to_term(Binary)),
+    {noreply, State#screen{getch = undefined}}.
 
 
 handle_cast(_, State) ->
     {noreply, State}.
 
 
-code_change(_, State, _) ->
-    {noreply, State}.
-
-
-terminate(_Reason, State) ->
+terminate(Reason, State) ->
+    error_logger:info_msg("ncdrv terminating : ~p~n", [Reason]),
     do_call(State#screen.port, ?ENDWIN),
     do_call(State#screen.port, ?CURS_SET, ?CURS_NORMAL),
     erlang:port_close(State#screen.port),
-    erl_ddll:unload("ncdrv").
+    erl_ddll:unload("ncdrv"),
+    shutdown_doms(State#screen.apps),
+    ok.
+
+
+code_change(_, State, _) ->
+    {noreply, State}.
 
 %%-- Internal Functions
 
@@ -434,3 +443,8 @@ load_driver() ->
           end,
     erl_ddll:load(Dir, "ncdrv").
 
+
+shutdown_doms([]) -> shutdown;
+shutdown_doms([{_, RootNode} | Apps]) ->
+    ncnode:shutdown(RootNode),
+    shutdown_doms(Apps).
