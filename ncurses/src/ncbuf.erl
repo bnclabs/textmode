@@ -2,22 +2,24 @@
 -author('prataprc@gmail.com').
 
 % Module API
--export([frameinit/2, bordercolor/1, frameborders/2, cornerize/3]).
+-export([init_block/2, bordercolor/1, frameborders/2, cornerize/3]).
 
 -include("ncurses.hrl").
 -include("ncdom.hrl").
 
 
-frameinit(Rows, Cols) ->
+init_block(Rows, Cols) ->
     erlang:list_to_tuple( lists:duplicate(Rows, erlang:make_tuple(Cols, $ ))).
 
 
 frameborders(#tag{ box=#box{border={Bt, Br, Bb, Bl}} }=Tag, Buf) ->
-    NBuf = frameborder(left, Bl,
-                frameborder(bottom, Bb, 
-                    frameborder(right, Br,
-                        frameborder( top, Bt, Buf )))),
-    frameborders(Tag#tag.content, NBuf);
+    frameborders(
+        Tag#tag.content,
+        frameborder(left, Bl,
+            frameborder(bottom, Bb, 
+                frameborder(right, Br,
+                    frameborder( top, Bt, Buf ))))
+    );
 
 frameborders([], Buf) -> Buf;
 frameborders([#text{} | Es], Buf) -> frameborders(Es, Buf);

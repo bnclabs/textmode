@@ -2,7 +2,7 @@
 -author('prataprc@gmail.com').
 
 % module API
--export([spawndom/1, getfocus/1, xpath/2, flatten/2]).
+-export([spawndom/1, getfocus/1, xpath/2, add_xdrv/2]).
 
 -export([init/1]).
 
@@ -30,26 +30,25 @@ xpath(XNode, [#xnode{cnodes=CNodes}=N | Ns]) ->
     case xpath(XNode, CNodes) of
         [] -> xpath(XNode, Ns);
         XPath -> [N | XPath]
-    end.
+    end;
+xpath(XNode, XRoot) -> xpath(XNode, [XRoot]).
 
 
-flatten(preorder, #xnode{}=XNode) -> lists:reverse( flatten( XNode, [] )).
+add_xdrv(Pid, #xnode{xpids=XPids, cnodes=CNodes}=XNode) ->
+    Fn = fun(A, B) -> 
+            ErlNode = node(),
+            case {node(A), node(B)} of
+                {ErlNode, ErlNode} -> true;
+                {ErlNode, _} -> true;
+                _ -> false
+            end
+         end,
+    NCRefs = lists:sort(Fn, [Pid | XPids]),
+    XNode#xnode{xpids=NCRefs, cnodes=add_xdrv(Pid, CNodes, [])}.
 
-
-%add_xdrv(Pid, #xnode{xpids=XPids, cnodes=CNodes}=XNode) ->
-%    Fn = fun(A, B) -> 
-%            case {node(A), node(B)} of
-%                {node(), node()} -> true;
-%                {node(), _} -> true;
-%                _ -> false
-%            end
-%         end,
-%    NCRefs = lists:sort(Fn, [Pid | XPids]),
-%    XNode#xnode{xpids=NCRefs, cnodes=add_xdrv(Pid, CNodes, [])}.
-%
-%add_xdrv(_, [], Acc) -> lists:reverse(Acc);
-%add_xdrv(Pid, [CNode | CNodes], Acc) -> 
-%    add_xdrv(Pid, CNodes, [add_xdrv(Pid, CNode) | Acc]).
+add_xdrv(_, [], Acc) -> lists:reverse(Acc);
+add_xdrv(Pid, [CNode | CNodes], Acc) -> 
+    add_xdrv(Pid, CNodes, [add_xdrv(Pid, CNode) | Acc]).
 
 
 %---- internal functions

@@ -110,19 +110,6 @@ doc() -> doc(?MODULE).
 doc(Ref) -> 
     gen_server:call(Ref, doc, infinity).
 
-loaddoc(Doc) -> loaddoc(?MODULE, Doc).
-loaddoc(Ref, Doc) ->
-    gen_server:call(Ref, {doc, Doc}, infinity).
-
-
-ncall(Ref, {Cmd}) -> ncall(Ref, {Cmd, undefined, infinity});
-ncall(Ref, {Cmd, Args}) -> ncall(Ref, {Cmd, Args, infinity});
-ncall(Ref, {Cmd, Args, Timeout}) ->
-    gen_server:call(Ref, {docall, Cmd, Args}, Timeout).
-
-ncall(Request) -> ncall(?MODULE, Request).
-
-
 render(Ref, {Buf}) -> render(Ref, {0, 0, Buf});
 render(Ref, {Y, Buf}) -> render(Ref, {Y, 0, Buf});
 render(Ref, Req) -> 
@@ -131,10 +118,23 @@ render(Ref, Req) ->
 render(Req) -> render(?MODULE, Req).
 
 
-backdrop(Ref, XRoot) ->
-    gen_server:call(Ref, {backdrop, XRoot}, infinity).
+loaddoc(Doc) -> loaddoc(?MODULE, Doc).
+loaddoc(Ref, Doc) ->
+    gen_server:call(Ref, {doc, Doc}, infinity).
 
-backdrop(XRoot) -> backdrop(?MODULE, XRoot).
+
+backdrop(Ref, Doc) ->
+    gen_server:call(Ref, {backdrop, Doc}, infinity).
+
+backdrop(Doc) -> backdrop(?MODULE, Doc).
+
+
+ncall(Ref, {Cmd}) -> ncall(Ref, {Cmd, undefined, infinity});
+ncall(Ref, {Cmd, Args}) -> ncall(Ref, {Cmd, Args, infinity});
+ncall(Ref, {Cmd, Args, Timeout}) ->
+    gen_server:call(Ref, {docall, Cmd, Args}, Timeout).
+
+ncall(Request) -> ncall(?MODULE, Request).
 
 
 %---- NCurses API
@@ -399,22 +399,18 @@ handle_call(mainbox, _From, #screen{rows=Rows, cols=Cols}=State) ->
 handle_call(doc, _From, #screen{doc=Doc}=State) ->
     {reply, Doc, State};
 
-handle_call({loaddoc, Doc}, _From, State) ->
-    {reply, Doc, load_doc(Doc, State)};
-
-handle_call({docall, Cmd, Args}, _From, #screen{port=Port}=State) ->
-    {reply, docall(Port, Cmd, Args), State};
-
 handle_call({render, Req}, _From, #screen{port=Port}=State) ->
     {reply, render_buf(Port, Req), State};
 
-handle_call({backdrop, #xnode{tag=RootTag}}, _From, State) ->
-    #screen{port=Port, rows=Rows, cols=Cols} = State,
-    Buf = ncbuf:cornerize( 
-                ncbuf:frameborders(RootTag, ncbuf:frameinit(Rows, Cols)),
-                Rows, Cols),
-    render_buf(Port, {0, 0, tuple_to_list(Buf)}),
-    {reply, ok, State}.
+handle_call({loaddoc, Doc}, _From, State) ->
+    {reply, Doc, load_doc(Doc, State)};
+
+handle_call({backdrop, Doc}, _From, State) ->
+    {reply, doc_backdrop(Doc, State), State};
+
+handle_call({docall, Cmd, Args}, _From, #screen{port=Port}=State) ->
+    {reply, docall(Port, Cmd, Args), State}.
+
 
 
 handle_info({_Port, {data, Binary}}, #screen{doc=Doc}=State) ->
@@ -475,7 +471,7 @@ doc_backdrop(Doc, State) ->
     RootTag = Doc#doc.root#xnode.tag,
     #screen{port=Port, rows=Rows, cols=Cols} = State,
     Buf = ncbuf:cornerize( 
-                ncbuf:frameborders(RootTag, ncbuf:frameinit(Rows, Cols)),
+                ncbuf:frameborders(RootTag, ncbuf:init_block(Rows, Cols)),
                 Rows, Cols),
     render_buf(Port, {0, 0, tuple_to_list(Buf)}),
     ok.

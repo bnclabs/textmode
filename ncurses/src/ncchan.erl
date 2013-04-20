@@ -4,8 +4,8 @@
 
 % module API
 -export([start_link/1, new/1, subscribe/2, subscribe/3, subscribe/4,
-         unsubscribe/2, publish/2, post/3, propagate/2, send_receive/2,
-         reply/2, event/2, stop_propation/1, event/3]).
+         unsubscribe/2, publish/2, bubble/2, capture/2, propagate/2,
+         send_receive/2, reply/2, stop_propation/1, event/2, event/3]).
 
 % behaviour Callbacks
 -export([
@@ -38,10 +38,10 @@ unsubscribe(Chname, Ref) ->
 publish(Chname, Event) ->
     gen_server:cast(?MODULE, {publish, Chname, Event}).
 
-post(bubble, Doc, Event) ->
-    gen_server:cast(?MODULE, {bubble, Doc, Event});
+bubble(Doc, Event) ->
+    gen_server:cast(?MODULE, {bubble, Doc, Event}).
 
-post(capture, Doc, Event) ->
+capture(Doc, Event) ->
     gen_server:cast(?MODULE, {capture, Doc, Event}).
 
 propagate(#xnode{}=XNode, Event) ->
@@ -96,16 +96,19 @@ handle_cast({publish, Chname, Event}, #evtsys{channels=Channels}=State) ->
     chevent(Subscrs, Event),
     {noreply, State};
 
-handle_cast({bubble, #doc{root=Root, focus=XNode}, Event}, State) ->
-    domevent( lists:reverse( ncnode:xpath( XNode, [Root] )), Event ),
+handle_cast({bubble, #doc{root=XRoot, focus=XNode}, Event}, State) ->
+    domevent( lists:reverse( ncnode:xpath( XNode, XRoot )), Event ),
     {noreply, State};
 
-handle_cast({capture, #doc{root=Root, focus=XNode}, Event}, State) ->
-    domevent( ncnode:xpath(XNode, [Root]), Event ),
+handle_cast({capture, #doc{root=XRoot, focus=XNode}, Event}, State) ->
+    domevent( ncnode:xpath(XNode, XRoot), Event ),
     {noreply, State};
 
 handle_cast({propagate, #xnode{}=XNode, Event}, State) ->
-    domevent( ncnode:flatten(XNode), Event ),
+    Fold = fun(Node, Acc) -> [Node | Acc] end,
+    Children = fun(#xnode{cnodes=CNodes}) -> CNodes end,
+    XNodes = lists:reverse( tree:preorder( XNode, Fold, Children, [] )),
+    domevent(XNodes, Event),
     {noreply, State}.
 
 
@@ -147,11 +150,12 @@ remove_handler(Chname, Ref, #evtsys{channels=Channels}=State) ->
 chevent(_, _, #event{stop=true}=Event) -> Event;
 chevent([], _, Event) -> Event;
 chevent([{_, M, F, Args} | Rest], Event, Opts) ->
+    EArgs = Args ++ [Event],
     chevent(
         Rest,
         case lists:member(asyn, Opts) of
-            true -> erlang:spawn_link(M, F, Args ++ [Event]), Event;
-            false -> erlang:apply(M, F, Args ++ [Event])
+            true -> erlang:spawn_link(M, F, EArgs), Event;
+            false -> erlang:apply(M, F, EArgs)
         end,
         Opts
     );
@@ -173,13 +177,3 @@ domevent(_, #event{stop=true}=Event) -> Event;
 domevent([#xnode{pid=Pid} | Rest], #event{stop=false}=Event) ->
     domevent( Rest, send_receive( Pid, Event )).
 
-
-%propgevent(_, #event{stop=true}=Event) -> Event;
-%propgevent([], Event) -> Event;
-%propgevent([CNode | CNodes], Event) ->
-%    propgevent(CNode, Event), propgevent(CNodes, Event);
-%propgevent(#xnode{pid=Pid, cnodes=CNodes}, Event) ->
-%    case send_receive(Pid, Event) of
-%        stop -> stop;
-%        _ -> propgevent(CNodes, Event)
-%    end.

@@ -2,17 +2,25 @@
 -author('prataprc@gmail.com').
 
 % module API
--export([preorder/3, inorder/3, levelorder/3]).
+-export([preorder/4, inorder/4, postorder/4, levelorder/4]).
+
+-ifdef(TEST).
+-record( x, {v, ns=[]}).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
 
 %---- module API
-preorder(Root, Fold, Children) ->
-    lists:reverse( prefold(Root, Fold, Children, []) ).
+preorder(Root, Fold, Children, Acc) ->
+    prefold(Root, Fold, Children, Acc).
 
-inorder(Root, Fold, Children) ->
-    lists:reverse( infold(Root, Fold, Children, []) ).
+inorder(_Root, _Fold, _Children, _Acc) ->
+    "Not implemented".
 
-levelorder(Root, Fold, Children) ->
-    lists:reverse( lvlfold([Root], Fold, Children, [], []) ).
+postorder(Root, Fold, Children, Acc) ->
+    postfold(Root, Fold, Children, Acc).
+
+levelorder(Root, Fold, Children, Acc) ->
+    lvlfold([Root], Fold, Children, [], Acc).
 
 
 %-- internal functions
@@ -22,14 +30,31 @@ prefold([CNode | CNodes], Fold, Children, Acc) ->
 prefold(Node, Fold, Children, Acc) ->
     prefold( Children(Node), Fold, Children, Fold(Node, Acc) ).
 
-infold([], _, _, Acc) -> Acc;
-infold([CNode | CNodes], Fold, Children, Acc) ->
-    infold(CNodes, Fold, Children, infold(CNode, Fold, Children, Acc));
-infold(Node, Fold, Children, Acc) ->
-    Fold(Node, infold(Children(Node), Fold, Children, Acc)).
+postfold([], _, _, Acc) -> Acc;
+postfold([CNode | CNodes], Fold, Children, Acc) ->
+    postfold(CNodes, Fold, Children, postfold(CNode, Fold, Children, Acc));
+postfold(Node, Fold, Children, Acc) ->
+    Fold(Node, postfold(Children(Node), Fold, Children, Acc)).
 
 lvlfold([], _, _, [], Acc) -> Acc;
 lvlfold([], Fold, Children, Level, Acc) -> 
     lvlfold(Level, Fold, Children, [], Acc);
 lvlfold([Node | Nodes], Fold, Children, Level, Acc) ->
     lvlfold(Nodes, Fold, Children, Level ++ Children(Node), Fold(Node, Acc)).
+
+
+-ifdef(TEST).
+%---- eunit test cases for tree algorithm.
+
+sampletree() ->
+    #x{v=1, ns=[ #x{v=2, ns=[ #x{v=4, ns=[#x{v=7}]}, #x{v=5} ]},
+                 #x{v=3, ns=[ #x{v=6, ns=[#x{v=8}, #x{v=9}]} ]} ]}.
+
+sample_test() ->
+    Fold = fun(E, Acc) -> [E | Acc] end,
+    Children = fun(#x{ns=Cs}) -> Cs end,
+    preorder(sampletree(), Fold, Children),
+    postorder(sampletree(), Fold, Children),
+    levelorder(sampletree(), Fold, Children),
+    ok.
+-endif.
