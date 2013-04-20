@@ -11,56 +11,62 @@
 ]).
 
 % Module API
--export([start_link/1, current_app/0, current_app/1, mainbox/0, 
-         register_app/1, register_onquit/1]).
+-export([start_link/1, mainbox/0, mainbox/1, doc/0, doc/1, loaddoc/1, loaddoc/2,
+         ncall/1, ncall/2, render/1, render/2, backdrop/1, backdrop/2
+        ]).
 
 % NCurses API
 -export([
     % terminal
     beep/0, flash/0, curses_version/0,
-    getyx/0, getyx/1, getbegyx/0, getbegyx/1, getmaxyx/0, getmaxyx/1,
-    getparyx/0, getparyx/1, 
+    beep/1, flash/1, curses_version/1,
+    getyx/0, getbegyx/0, getmaxyx/0, getparyx/0,
+    getyx/1, getbegyx/1, getmaxyx/1, getparyx/1,
 
     % window 
-    refresh/0, refresh/1, wnoutrefresh/1, doupdate/0,
-    werase/0,  werase/1, clear/0, clear/1, clrtobot/0, clrtobot/1,
-    clrtoeol/0, clrtoeol/1,
+    refresh/0, doupdate/0, erase/0,  clear/0, clrtobot/0, clrtoeol/0, 
+    refresh/1, doupdate/1, erase/1,  clear/1, clrtobot/1, clrtoeol/1, 
     
     % input options
-    raw/0, noraw/0, cbreak/0, nocbreak/0, echo/0, noecho/0, keypad/2,
-    nodelay/2, halfdelay/1, notimeout/2, timeout/1, wtimeout/2,
+    raw/0, noraw/0, cbreak/0, nocbreak/0, echo/0, noecho/0, keypad/1,
+    raw/1, noraw/1, cbreak/1, nocbreak/1, echo/1, noecho/1, keypad/2,
+    nodelay/1, halfdelay/1, timeout/1, notimeout/1,
+    nodelay/2, halfdelay/2, timeout/2, notimeout/2,
     
     % do character, string and line output
-    addch/1, addch/2, addch/3, addch/4, echochar/1, echochar/2,
+    addch/1, addch/2, addch/3, addch/4,
+    echochar/1, echochar/2,
     delch/0, delch/1, delch/2, delch/3,
+    insch/1, insch/2, insch/3, insch/4,
+
     addstr/1, addstr/2, addstr/3, addstr/4,
     addnstr/2, addnstr/3, addnstr/4, addnstr/5,
     addchstr/1, addchstr/2, addchstr/3, addchstr/4,
     addchnstr/2, addchnstr/3, addchnstr/4, addchnstr/5,
-    deleteln/0, deleteln/1, insdelln/1, insdelln/2, insertln/0, insertln/1,
-    insch/1, insch/2, insch/3, insch/4,
     insstr/1, insstr/2, insstr/3, insstr/4,
     insnstr/2, insnstr/3, insnstr/4, insnstr/5,
+    deleteln/0, deleteln/1, insdelln/1, insdelln/2, insertln/0, insertln/1,
 
     % do attribute settings
-    color_set/1, color_set/2, attrset/1, attrset/2, attroff/1, attroff/2,
-    attron/1, attron/2, attr_get/0, attr_get/1, chgat/3, chgat/4, chgat/5,
-    chgat/6,
+    color_set/1, attrset/1, attroff/1, attron/1, attr_get/0,
+    color_set/2, attrset/2, attroff/2, attron/2, attr_get/1,
+
+    chgat/3, chgat/4, chgat/5, chgat/6,
+
     has_colors/0, can_change_color/0, start_color/0, init_pair/3,
-    color_content/1,
+    has_colors/1, can_change_color/1, start_color/1, init_pair/4,
+    color_content/1, color_content/2,
 
     % do input
-    getch/0, ungetch/1, has_key/1, inch/0, inch/1, inch/2, inch/3,
+    getch/0, ungetch/1, has_key/1,
+    getch/1, ungetch/2, has_key/2,
+    inch/0, inch/1, inch/2, inch/3,
     innstr/1, innstr/2, innstr/3, innstr/4,
     inchnstr/1, inchnstr/2, inchnstr/3, inchnstr/4,
 
     % Window functions
-    newwin/4, delwin/1,
-    move/2, move/3, hline/2, hline/3, hline/4, hline/5,
-    vline/2, vline/3, vline/4, vline/5, border/8, wborder/9, box/3,
-	curs_set/1,
-    nl/0, nonl/0,
-	scrollok/2
+    move/2, curs_set/1, nl/0, nonl/0, scrollok/1,
+    move/3, curs_set/2, nl/1, nonl/1, scrollok/2
 ]).
 
 % Utility functions
@@ -84,243 +90,268 @@
         is_boolean(Val1) andalso is_boolean(Val2) andalso is_boolean(Val3)).
 -define(INT_BOOL(Val1, Val2),
         is_integer(Val1) andalso is_boolean(Val2)).
+
+
 %---- Module API
 
 start_link(Args) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, Args, []).
+    ServerName = 
+        case init:get_argument(screen) of
+            {ok, [[Name | _ ] | _]} -> {local, Name};
+            _ -> {local, ?MODULE}
+        end,
+    gen_server:start_link(ServerName, ?MODULE, {ServerName, Args}, []).
 
-current_app() ->
-    gen_server:call(?MODULE, current_app, infinity).
-current_app(App) ->
-    gen_server:call(?MODULE, {current_app, App}, infinity).
+mainbox() -> mainbox(?MODULE).
+mainbox(Ref) ->
+    gen_server:call(Ref, mainbox, infinity).
 
-mainbox() ->
-    gen_server:call(?MODULE, mainbox, infinity).
+doc() -> doc(?MODULE).
+doc(Ref) -> 
+    gen_server:call(Ref, doc, infinity).
 
-register_app(App) -> 
-    gen_server:call(?MODULE, {register_app, App}, infinity).
+loaddoc(Doc) -> loaddoc(?MODULE, Doc).
+loaddoc(Ref, Doc) ->
+    gen_server:call(Ref, {doc, Doc}, infinity).
 
-register_onquit(Pid) -> 
-    gen_server:call(?MODULE, {register_onquit, Pid}, infinity).
+
+ncall(Ref, {Cmd}) -> ncall(Ref, {Cmd, undefined, infinity});
+ncall(Ref, {Cmd, Args}) -> ncall(Ref, {Cmd, Args, infinity});
+ncall(Ref, {Cmd, Args, Timeout}) ->
+    gen_server:call(Ref, {docall, Cmd, Args}, Timeout).
+
+ncall(Request) -> ncall(?MODULE, Request).
+
+
+render(Ref, {Buf}) -> render(Ref, {0, 0, Buf});
+render(Ref, {Y, Buf}) -> render(Ref, {Y, 0, Buf});
+render(Ref, Req) -> 
+    gen_server:call(Ref, {render, Req}, infinity).
+
+render(Req) -> render(?MODULE, Req).
+
+
+backdrop(Ref, XRoot) ->
+    gen_server:call(Ref, {backdrop, XRoot}, infinity).
+
+backdrop(XRoot) -> backdrop(?MODULE, XRoot).
+
 
 %---- NCurses API
 
 % terminal routines
-beep() -> ncall({?BEEP, undefined}).
-flash() -> ncall({?FLASH, undefine}).
-curses_version() -> ncall({?CURSES_VERSION, undefined}).
+beep() -> beep(?MODULE).
+beep(Ref) -> ncall(Ref, {?BEEP}).
+flash() -> flash(?MODULE).
+flash(Ref) -> ncall(Ref, {?FLASH}).
+curses_version() -> curses_version(?MODULE).
+curses_version(Ref) -> ncall(Ref, {?CURSES_VERSION}).
+getyx() -> getyx(?MODULE).
+getyx(Ref) -> ncall(Ref, {?GETYX}).
+getbegyx() -> getbegyx(?MODULE).
+getbegyx(Ref) -> ncall(Ref, {?GETBEGYX}).
+getmaxyx() -> getmaxyx(?MODULE).
+getmaxyx(Ref) -> ncall(Ref, {?GETMAXYX}).
+getparyx() -> getparyx(?MODULE).
+getparyx(Ref) -> ncall(Ref, {?GETPARYX}).
 
-% window refresh
-refresh() -> refresh(?W_STDSCR).
-refresh(Win) -> ncall({?WREFRESH, Win}).
-wnoutrefresh(Win) -> ncall({?WNOUTREFRESH, Win}).
-doupdate() -> ncall({?DOUPDATE, undefined}).
-werase() -> werase(?W_STDSCR).
-werase(Win) -> ncall({?WERASE, Win}).
-clear() -> clear(?W_STDSCR).
-clear(Win) -> ncall({?WCLEAR, Win}).
-clrtobot() -> clrtobot(?W_STDSCR).
-clrtobot(Win) -> ncall({?WCLRTOBOT, Win}).
-clrtoeol() -> clrtoeol(?W_STDSCR).
-clrtoeol(Win) -> ncall({?WCLRTOEOL, Win}).
-getyx() -> getyx(?W_STDSCR).
-getyx(Win) -> ncall({?GETYX, Win}).
-getbegyx() -> getbegyx(?W_STDSCR).
-getbegyx(Win) -> ncall({?GETBEGYX, Win}).
-getmaxyx() -> getmaxyx(?W_STDSCR).
-getmaxyx(Win) -> ncall({?GETMAXYX, Win}).
-getparyx() -> getparyx(?W_STDSCR).
-getparyx(Win) -> ncall({?GETPARYX, Win}).
 
-% input options
-raw() -> ncall({?RAW, undefined}).
-noraw() -> ncall({?NORAW, undefined}).
-cbreak() -> ncall({?CBREAK, undefined}).
+%-- window refresh
+refresh() -> refresh(?MODULE).
+refresh(Ref) -> ncall(Ref, {?REFRESH}).
+doupdate() -> doupdate(?MODULE).
+doupdate(Ref) -> ncall(Ref, {?DOUPDATE}).
+erase() -> ncdrv:erase(?MODULE).
+erase(Ref) -> ncall(Ref, {?ERASE}).
+clear() -> clear(?MODULE).
+clear(Ref) -> ncall(Ref, {?CLEAR}).
+clrtobot() -> clrtobot(?MODULE).
+clrtobot(Ref) -> ncall(Ref, {?CLRTOBOT}).
+clrtoeol() -> clrtoeol(?MODULE).
+clrtoeol(Ref) -> ncall(Ref, {?CLRTOEOL}).
+
+%-- input options
+raw() -> raw(?MODULE).
+raw(Ref) -> ncall(Ref, {?RAW}).
+
+noraw() -> noraw(?MODULE).
+noraw(Ref) -> ncall(Ref, {?NORAW}).
+
+cbreak() -> cbreak(?MODULE).
+cbreak(Ref) -> ncall(Ref, {?CBREAK}).
+
 nocbreak() -> "Not supported".
-echo() -> ncall({?ECHO, undefined}).
-noecho() -> ncall({?NOECHO, undefined}).
-keypad(Win, Flag) -> ncall({?KEYPAD, {Win, Flag}}).
-nodelay(Win, Flag) -> ncall({?NODELAY, {Win, Flag}}).
-halfdelay(Tenths) -> ncall({?HALFDELAY, Tenths}).
-notimeout(Win, Flag) -> ncall({?NOTIMEOUT, {Win, Flag}}).
-timeout(Delay) -> wtimeout(?W_STDSCR, Delay).
-wtimeout(Win, Delay) -> ncall({?WTIMEOUT, {Win, Delay}}).
+nocbreak(_) -> "Not supported".
 
-% do character output
-addch(Char) -> addch(?W_STDSCR, Char).
-addch(Win, Char) -> ncall({?WADDCH, {Win, Char}}).
-addch(Y, X, Char) -> addch(?W_STDSCR, Y, X, Char).
-addch(Win, Y, X, Char) -> ncall({?WADDCH, {Win,Y,X,Char}}).
+echo() -> echo(?MODULE).
+echo(Ref) -> ncall(Ref, {?ECHO}).
 
-echochar(Char) -> echochar(?W_STDSCR, Char).
-echochar(Win, Char) -> ncall({?WECHOCHAR, {Win, Char}}).
+noecho() -> noecho(?MODULE).
+noecho(Ref) -> ncall(Ref, {?NOECHO}).
 
-delch() -> delch(?W_STDSCR).
-delch(Win) -> ncall({?WDELCH, {Win}}).
-delch(Y, X) -> delch(?W_STDSCR, Y, X).
-delch(Win, Y, X ) -> ncall({?WDELCH, {Win, Y, X}}).
+keypad(Flag) -> keypad(?MODULE, Flag).
+keypad(Ref, Flag) -> ncall(Ref, {?KEYPAD, Flag}).
 
-insch(Char) -> insch(?W_STDSCR, Char).
-insch(Win, Char) -> ncall({?WINSCH, {Win, Char}}).
-insch(Y, X, Char) -> insch(?W_STDSCR, Y, X, Char).
-insch(Win, Y, X, Char) -> ncall({?WINSCH, {Win, Y, X, Char}}).
+nodelay(Flag) -> nodelay(?MODULE, Flag).
+nodelay(Ref, Flag) -> ncall(Ref, {?NODELAY, Flag}).
 
-% do string output
-addstr(String) -> addstr(?W_STDSCR, String).
-addstr(Win, String) ->
-    Str = lists:flatten(String),
-    addnstr_(Win, Str, erlang:length(Str)).
-addstr(Y, X, String) -> addstr(?W_STDSCR, Y, X, String).
-addstr(Win, Y, X, String) ->
-    Str = lists:flatten(String),
-    addnstr_(Win, Y, X, Str, erlang:length(Str)).
+halfdelay(Tenths) -> halfdelay(?MODULE, Tenths).
+halfdelay(Ref, Tenths) -> ncall(Ref, {?HALFDELAY, Tenths}).
 
-% In the following four APIs N should not be less than the size of String
-% list. It is better to use the addstr() variant.
-addnstr(String, N) -> addnstr(?W_STDSCR, String, N).
-addnstr(Win, String, N) ->
-    Str = lists:flatten(String),
-    addnstr_(Win, Str, N).
-addnstr(Y, X, String, N) -> addnstr(?W_STDSCR, Y, X, String, N).
-addnstr(Win, Y, X, String, N) ->
-    Str = lists:flatten(String),
-    addnstr_(Win, Y, X, Str, N).
+timeout(Delay) -> timeout(?MODULE, Delay).
+timeout(Ref, Delay) -> ncall(Ref, {?TIMEOUT, Delay}).
 
-addnstr_(Win, Str, N) ->                 % local method
-    ncall({?WADDNSTR, {Win, N, Str}}).
+notimeout(Flag) -> notimeout(?MODULE, Flag).
+notimeout(Ref, Flag) -> ncall(Ref, {?NOTIMEOUT, Flag}).
 
-addnstr_(Win, Y, X, Str, N) ->           % local method
-    ncall({?WADDNSTR, {Win, Y, X, N, Str}}).
+%-- do character output
+addch(Char) -> addch(?MODULE, Char).
+addch(Ref, Char) -> ncall(Ref, {?ADDCH, {Char}}).
+addch(Y, X, Char) -> addch(?MODULE, Y, X, Char).
+addch(Ref, Y, X, Char) -> ncall(Ref, {?ADDCH, {Y,X,Char}}).
 
-%% This can send both string terms and list terms based on the chtype values.
-addchstr(String) -> addchstr(?W_STDSCR, String).
-addchstr(Win, String) ->
-    Str = lists:flatten(String),
-    addchnstr_(Win, Str, erlang:length(Str)).
-addchstr(Y, X, String) -> addchstr(?W_STDSCR, Y, X, String).
-addchstr(Win, Y, X, String) ->
-    Str = lists:flatten(String),
-    addchnstr_(Win, Y, X, Str, erlang:length(Str)).
+echochar(Char) -> echochar(?MODULE, Char).
+echochar(Ref, Char) -> ncall(Ref, {?ECHOCHAR, Char}).
 
-addchnstr(String, N) -> addchnstr(?W_STDSCR, String, N).
-addchnstr(Win, String, N) ->
-    Str = lists:flatten(String),
-    addchnstr_(Win, Str, N).
-addchnstr(Y, X, String, N) -> addchnstr(?W_STDSCR, Y, X, String, N).
-addchnstr(Win, Y, X, String, N) ->
-    Str = lists:flatten(String),
-    addchnstr_(Win, Y, X, Str, N).
+delch() -> delch(?MODULE).
+delch(Ref) -> ncall(Ref, {?DELCH, {}}).
+delch(Y, X ) -> delch(?MODULE, Y, X).
+delch(Ref, Y, X ) -> ncall(Ref, {?DELCH, {Y, X}}).
 
-addchnstr_(Win, Str, N) ->                 % local method
-    ncall({?WADDCHNSTR, {Win, N, Str}}).
-
-addchnstr_(Win, Y, X, Str, N) ->           % local method
-    ncall({?WADDCHNSTR, {Win, Y, X, N, Str}}).
-
-insstr(String) -> insstr(?W_STDSCR, String).
-insstr(Win, String) ->
-    Str = lists:flatten(String),
-    insnstr_(Win, Str, erlang:length(Str)).
-insstr(Y, X, String) -> insstr(?W_STDSCR, Y, X, String).
-insstr(Win, Y, X, String) ->
-    Str = lists:flatten(String),
-    insnstr_(Win, Y, X, Str, erlang:length(Str)).
-
-insnstr(String, N) -> insnstr(?W_STDSCR, String, N).
-insnstr(Win, String, N) ->
-    Str = lists:flatten(String),
-    insnstr_(Win, Str, N).
-insnstr(Y, X, String, N) -> insnstr(?W_STDSCR, Y, X, String, N).
-insnstr(Win, Y, X, String, N) ->
-    Str = lists:flatten(String),
-    insnstr_(Win, Y, X, Str, N).
-
-insnstr_(Win, Str, N) ->                 % local method
-    ncall({?WINSNSTR, {Win, N, Str}}).
-
-insnstr_(Win, Y, X, Str, N) ->           % local method
-    ncall({?WINSNSTR, {Win, Y, X, N, Str}}).
-
-deleteln() -> deleteln(?W_STDSCR).
-deleteln(Win) -> ncall({?WDELETELN, {Win}}).
-insdelln(N) -> insdelln(?W_STDSCR, N).
-insdelln(Win, N) -> ncall({?WINSDELLN, {Win, N}}).
-insertln() -> insertln(?W_STDSCR).
-insertln(Win) -> ncall({?WINSERTLN, {Win}}).
-
-% do attribute settings
-color_set(CPair) -> color_set(?W_STDSCR, CPair).
-color_set(Win, CPair) -> ncall({?COLOR_SET, {Win, CPair}}).
-attrset(Attr) -> attrset(?W_STDSCR, Attr).
-attrset(Win, Attr) -> ncall({?ATTRSET, {Win, Attr}}).
-attroff(Mask) -> attroff(?W_STDSCR, Mask).
-attroff(Win, Mask) -> ncall({?ATTROFF, {Win, Mask}}).
-attron(Mask) -> attron(?W_STDSCR, Mask).
-attron(Win, Mask) -> ncall({?ATTRON, {Win, Mask}}).
-attr_get() -> attr_get(?W_STDSCR).
-attr_get(Win) -> ncall({?ATTR_GET, {Win}}).
-chgat(N, Attr, CPair) -> chgat(?W_STDSCR, N, Attr, CPair).
-chgat(Win, N, Attr, CPair) -> ncall({?CHGAT, {Win, N, Attr, CPair}}).
-chgat(Y, X, N, Attr, CPair) -> chgat(?W_STDSCR, Y, X, N, Attr, CPair).
-chgat(Win, Y, X, N, Attr, CPair) -> ncall({?CHGAT, {Win,Y,X,N,Attr,CPair}}).
-
-% do color settings
-has_colors() -> ncall({?HAS_COLORS, undefined}).
-can_change_color() -> ncall({?CAN_CHANGE_COLOR, undefined}).
-start_color() -> ncall({?START_COLOR, undefined}).
-init_pair(N, FColor, BColor) -> ncall({?INIT_PAIR, {N, FColor, BColor}}).
-color_content(N) -> ncall({?COLOR_CONTENT, N}).
-
-% do inputs
-getch() -> ncall({?GETCH, undefined}).
-ungetch(Char) -> ncall({?UNGETCH, Char}).
-has_key(Char) -> ncall({?HAS_KEY, Char}).
-inch() -> inch(?W_STDSCR).
-inch(Win) -> ncall({?INCH, {Win}}).
-inch(Y, X) -> inch(?W_STDSCR, Y, X).
-inch(Win, Y, X) -> ncall({?INCH, {Win, Y, X}}).
-innstr(N) -> innstr(?W_STDSCR, N).
-innstr(Win, N) -> ncall({?INNSTR, {Win, N}}).
-innstr(Y, X, N) -> innstr(?W_STDSCR, Y, X, N).
-innstr(Win, Y, X, N) -> ncall({?INNSTR, {Win, Y, X, N}}).
-inchnstr(N) -> inchnstr(?W_STDSCR, N).
-inchnstr(Win, N) -> ncall({?INCHNSTR, {Win, N}}).
-inchnstr(Y, X, N) -> inchnstr(?W_STDSCR, Y, X, N).
-inchnstr(Win, Y, X, N) -> ncall({?INCHNSTR, {Win, Y, X, N}}).
+insch(Char) -> insch(?MODULE, Char).
+insch(Ref, Char) -> ncall(Ref, {?INSCH, {Char}}).
+insch(Y, X, Char) -> insch(?MODULE, Y, X, Char).
+insch(Ref, Y, X, Char) -> ncall(Ref, {?INSCH, {Y, X, Char}}).
 
 
-% Win functions
-newwin(Height, Width, StartY, StartX) ->
-    ncall({?NEWWIN, {Height, Width, StartY, StartX}}).
-delwin(Win) -> ncall({?DELWIN, Win}).
-move(Y, X) -> move(?W_STDSCR, Y, X).
-move(Win, Y, X) -> ncall({?MOVE, {Win, X, Y}}).
-curs_set(Flag) -> ncall({?CURS_SET, Flag}).
-hline(Char, MaxN) -> hline(?W_STDSCR, Char, MaxN).
-hline(Win, Char, MaxN) -> ncall({?HLINE, {Win, Char, MaxN}}).
-hline(Y, X, Char, MaxN) -> hline(?W_STDSCR, Y, X, Char, MaxN).
-hline(Win, Y, X, Char, MaxN) -> ncall({?HLINE, {Win, Y, X, Char, MaxN}}).
-vline(Char, MaxN) -> vline(?W_STDSCR, Char, MaxN).
-vline(Win, Char, MaxN) -> ncall({?VLINE, {Win, Char, MaxN}}).
-vline(Y, X, Char, MaxN) -> vline(?W_STDSCR, Y, X, Char, MaxN).
-vline(Win, Y, X, Char, MaxN) -> ncall({?VLINE, {Win, Y, X, Char, MaxN}}).
+%-- do string output
+addstr(String) -> addnstr(?MODULE, String, length(String)).
+addstr(Ref, String) -> addnstr(Ref, String, length(String)).
+addstr(Y, X, String) -> addnstr(?MODULE, Y, X, String, length(String)).
+addstr(Ref, Y, X, String) -> addnstr(Ref, Y, X, String, length(String)).
 
-nl() -> ncall({?NL, undefined}).
-nonl() -> ncall({?NONL, undefined}).
-scrollok(Win, Flag) -> ncall({?SCROLLOK, {Win, Flag}}).
-border(Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs) ->
-    wborder(0, Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs).
-wborder(Win, Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs) ->
-    Args = {Win, Ls, Rs, Ts, Bs, TLs, TRs, BLs, BRs},
-    ncall({?WBORDER, Args}).
-box(Win, Vert, Horz) -> ncall({?BOX, {Win, Vert, Horz}}).
+addnstr(String, N) -> addnstr(?MODULE, String, N).
+addnstr(Ref, String, N) -> ncall(Ref, {?ADDNSTR, {N, String}}).
+addnstr(Y, X, String, N) -> addnstr(?MODULE, Y, X, String, N).
+addnstr(Ref, Y, X, String, N) -> ncall(Ref, {?ADDNSTR, {Y, X, N, String}}).
+
+% This can send both string terms and list terms based on the chtype values.
+addchstr(String) -> addchnstr(?MODULE, String, length(String)).
+addchstr(Ref, String) -> addchnstr(Ref, String, length(String)).
+addchstr(Y, X, String) -> addchnstr(?MODULE, Y, X, String, length(String)).
+addchstr(Ref, Y, X, String) -> addchnstr(Ref, Y, X, String, length(String)).
+
+addchnstr(String, N) -> addchnstr(?MODULE, String, N).
+addchnstr(Ref, String, N) -> ncall(Ref, {?ADDCHNSTR, {N, String}}).
+addchnstr(Y, X, String, N) -> addchnstr(?MODULE, Y, X, String, N).
+addchnstr(Ref, Y, X, String, N) -> ncall(Ref, {?ADDCHNSTR, {Y, X, N, String}}).
+
+insstr(String) -> insnstr(?MODULE, String, length(String)).
+insstr(Ref, String) -> insnstr(Ref, String, length(String)).
+insstr(Y, X, String) -> insnstr(?MODULE, Y, X, String, length(String)).
+insstr(Ref, Y, X, String) -> insnstr(Ref, Y, X, String, length(String)).
+
+insnstr(String, N) -> insnstr(?MODULE, String, N).
+insnstr(Ref, String, N) -> ncall(Ref, {?INSNSTR, {N, String}}).
+insnstr(Y, X, String, N) -> insnstr(?MODULE, Y, X, String, N).
+insnstr(Ref, Y, X, String, N) -> ncall(Ref, {?INSNSTR, {Y, X, N, String}}).
+
+deleteln() -> deleteln(?MODULE).
+deleteln(Ref) -> ncall(Ref, {?DELETELN}).
+
+insdelln(N) -> insdelln(?MODULE, N).
+insdelln(Ref, N) -> ncall(Ref, {?INSDELLN, N}).
+
+insertln() -> insertln(?MODULE).
+insertln(Ref) -> ncall(Ref, {?INSERTLN}).
 
 
-ncall({Cmd, Arg}, Timeout) ->
-    App = case application:get_application() of {ok, A} -> A; X -> X end,
-    gen_server:call(?MODULE, {curses, App, Cmd, Arg}, Timeout).
+%-- do attribute settings
+color_set(CPair) -> color_set(?MODULE, CPair).
+color_set(Ref, CPair) -> ncall(Ref, {?COLOR_SET, CPair}).
 
-ncall(Request) -> ncall(Request, infinity).
+attrset(Attr) -> attrset(?MODULE, Attr).
+attrset(Ref, Attr) -> ncall(Ref, {?ATTRSET, Attr}).
+
+attroff(Mask) -> attroff(?MODULE, Mask).
+attroff(Ref, Mask) -> ncall(Ref, {?ATTROFF, Mask}).
+
+attron(Mask) -> attron(?MODULE, Mask).
+attron(Ref, Mask) -> ncall(Ref, {?ATTRON, Mask}).
+
+attr_get() -> attr_get(?MODULE).
+attr_get(Ref) -> ncall(Ref, {?ATTR_GET}).
+
+chgat(N, Attr, CPair) ->
+    chgat(?MODULE, N, Attr, CPair).
+chgat(Ref, N, Attr, CPair) ->
+    ncall(Ref, {?CHGAT, {N, Attr, CPair}}).
+chgat(Y, X, N, Attr, CPair) ->
+    chgat(?MODULE, Y, X, N, Attr, CPair).
+chgat(Ref, Y, X, N, Attr, CPair) -> 
+    ncall(Ref, {?CHGAT, {Y, X, N, Attr, CPair}}).
+
+
+%-- do color settings
+has_colors() -> has_colors(?MODULE).
+has_colors(Ref) -> ncall(Ref, {?HAS_COLORS}).
+
+can_change_color() -> can_change_color(?MODULE).
+can_change_color(Ref) -> ncall(Ref, {?CAN_CHANGE_COLOR}).
+
+start_color() -> start_color(?MODULE).
+start_color(Ref) -> ncall(Ref, {?START_COLOR}).
+
+init_pair(N, FColor, BColor) ->
+    init_pair(?MODULE, N, FColor, BColor).
+init_pair(Ref, N, FColor, BColor) ->
+    ncall(Ref, {?INIT_PAIR, {N, FColor, BColor}}).
+
+color_content(N) -> color_content(?MODULE, N).
+color_content(Ref, N) -> ncall(Ref, {?COLOR_CONTENT, N}).
+
+%-- do inputs
+getch() -> "Not supported".
+getch(_) -> "Not supported".
+
+ungetch(Char) -> ungetch(?MODULE, Char).
+ungetch(Ref, Char) -> ncall(Ref, {?UNGETCH, Char}).
+
+has_key(Char) -> has_key(?MODULE, Char).
+has_key(Ref, Char) -> ncall(Ref, {?HAS_KEY, Char}).
+
+inch() -> inch(?MODULE).
+inch(Ref) -> ncall(Ref, {?INCH, {}}).
+inch(Y, X) -> inch(?MODULE, Y, X).
+inch(Ref, Y, X) -> ncall(Ref, {?INCH, {Y, X}}).
+
+innstr(N) -> innstr(?MODULE, N).
+innstr(Ref, N) -> ncall(Ref, {?INNSTR, {N}}).
+innstr(Y, X, N) -> innstr(?MODULE, Y, X, N).
+innstr(Ref, Y, X, N) -> ncall(Ref, {?INNSTR, {Y, X, N}}).
+
+inchnstr(N) -> inchnstr(?MODULE, N).
+inchnstr(Ref, N) -> ncall(Ref, {?INCHNSTR, {N}}).
+inchnstr(Y, X, N) -> inchnstr(?MODULE, Y, X, N).
+inchnstr(Ref, Y, X, N) -> ncall(Ref, {?INCHNSTR, {Y, X, N}}).
+
+
+%-- Win functions
+move(Y, X) -> move(?MODULE, Y, X).
+move(Ref, Y, X) -> ncall(Ref, {?MOVE, {Y, X}}).
+
+curs_set(Flag) -> curs_set(?MODULE, Flag).
+curs_set(Ref, Flag) -> ncall(Ref, {?CURS_SET, Flag}).
+
+nl() -> nl(?MODULE).
+nl(Ref) -> ncall(Ref, {?NL}).
+
+nonl() -> nonl(?MODULE).
+nonl(Ref) -> ncall(Ref, {?NONL}).
+
+scrollok(Flag) -> scrollok(?MODULE, Flag).
+scrollok(Ref, Flag) -> ncall(Ref, {?SCROLLOK, Flag}).
+
 
 % Utility functions
 ch(Attr, Color) ->
@@ -332,72 +363,71 @@ chattr(Attr) ->
 chcolor(Color) ->
     fun(Char)-> Color bor Char end.
 
+
 % Behaviour Callbacks
-init(_Args) ->
+init({{local, Name}, _Args}) ->
     process_flag(trap_exit, true),
     case load_driver() of
         ok ->
             Port = erlang:open_port({spawn, "ncdrv"}, [binary]),
-            ok = do_call(Port, ?INITSCR),
-            ok = do_call(Port, ?RAW),
-            ok = do_call(Port, ?NOECHO),
-            ok = do_call(Port, ?WERASE, 0),
-            ok = do_call(Port, ?WREFRESH, 0),
-            ok = do_call(Port, ?START_COLOR),
-            init_pairs( Port, do_call( Port, ?HAS_COLORS )),
-            {Rows, Cols} = do_call(Port, ?GETMAXYX, ?W_STDSCR),
-            {ok, #screen{ rows=Rows, cols=Cols, port=Port }};
+            ok = docall(Port, ?INITSCR),
+            ok = docall(Port, ?RAW),
+            ok = docall(Port, ?NOECHO),
+            ok = docall(Port, ?ERASE),
+            ok = docall(Port, ?REFRESH),
+            ok = docall(Port, ?START_COLOR),
+            init_pairs( Port, docall( Port, ?HAS_COLORS )),
+            {Rows, Cols} = docall(Port, ?GETMAXYX),
+            {ok, #screen{
+                    ref={Name, node()},
+                    port=Port, 
+                    rows=Rows, 
+                    cols=Cols }};
 
         {error, ErrorCode} ->
             exit({driver_error, erl_ddll:format_error(ErrorCode)})
     end.
 
 
-handle_call({curses, App, ?GETCH, _}, From, #screen{getch=undefined}=State) ->
-    case State#screen.app of
-        {escript, _, _} -> {noreply, State#screen{getch=From}};
-        {App, _, _} -> {noreply, State#screen{getch=From}};
-        _ -> {reply, false_context, State}
-    end;
-
-handle_call({curses, _App, ?GETCH, _}, _From, State) ->
-    {reply, busy, State};
-
-handle_call({curses, App, Cmd, Args}, _From, #screen{port=Port}=State) ->
-    case State#screen.app of
-        {escript, _, _} -> {reply, do_call(Port, Cmd, Args), State};
-        {App, _, _} -> {reply, do_call(Port, Cmd, Args), State};
-        _ -> {reply, false_context, State}
-    end;
-
-handle_call(current_app, _From, #screen{app=App}=State) ->
-    {reply, App, State};
-
-handle_call({current_app, Appname}, _From, State) ->
-    {Appname, RootNode}=App = lists:keyfind(Appname, 1, State#screen.apps),
-    {reply, App, State#screen{app={Appname, RootNode, RootNode}}};
+handle_call(pid, _From, State) ->
+    {reply, self(), State};
 
 handle_call(mainbox, _From, #screen{rows=Rows, cols=Cols}=State) ->
     {reply, {0, 0, Rows, Cols}, State};
 
-handle_call({register_app, App}, _From, State) ->
-    {reply, ok, State#screen{apps=[App | State#screen.apps]}}.
+
+handle_call(doc, _From, #screen{doc=Doc}=State) ->
+    {reply, Doc, State};
+
+handle_call({loaddoc, Doc}, _From, State) ->
+    {reply, Doc, load_doc(Doc, State)};
+
+handle_call({docall, Cmd, Args}, _From, #screen{port=Port}=State) ->
+    {reply, docall(Port, Cmd, Args), State};
+
+handle_call({render, Req}, _From, #screen{port=Port}=State) ->
+    {reply, render_buf(Port, Req), State};
+
+handle_call({backdrop, #xnode{tag=RootTag}}, _From, State) ->
+    #screen{port=Port, rows=Rows, cols=Cols} = State,
+    Buf = ncbuf:cornerize( 
+                ncbuf:frameborders(RootTag, ncbuf:frameinit(Rows, Cols)),
+                Rows, Cols),
+    render_buf(Port, {0, 0, tuple_to_list(Buf)}),
+    {reply, ok, State}.
 
 
-handle_info({_Port, {data, Binary}}, #screen{getch=undefined}=State) ->
-    case binary_to_term(Binary) of
+handle_info({_Port, {data, Binary}}, #screen{doc=Doc}=State) ->
+    Ch = binary_to_term(Binary),
+    case Ch of
         3 -> init:stop(0);
         _ ->
-            case State#screen.app of
-                {_, none, none} -> io:format("Got an input");
-                {_, #node{}, _} -> io:format("Got an input in app")
+            case Doc#doc.focus of
+                none -> error_msg:info_msg("Input ~p~n", [Ch]);
+                #xnode{pid=Pid} -> Pid ! Ch
             end
     end,
-    {noreply, State};
-
-handle_info({_Port, {data, Binary}}, State) ->
-    gen_server:reply(State#screen.getch, binary_to_term(Binary)),
-    {noreply, State#screen{getch = undefined}}.
+    {noreply, State}.
 
 
 handle_cast(_, State) ->
@@ -406,11 +436,10 @@ handle_cast(_, State) ->
 
 terminate(Reason, State) ->
     error_logger:info_msg("ncdrv terminating : ~p~n", [Reason]),
-    do_call(State#screen.port, ?ENDWIN),
-    do_call(State#screen.port, ?CURS_SET, ?CURS_NORMAL),
+    docall(State#screen.port, ?ENDWIN),
+    docall(State#screen.port, ?CURS_SET, ?CURS_NORMAL),
     erlang:port_close(State#screen.port),
     erl_ddll:unload("ncdrv"),
-    shutdown_doms(State#screen.apps),
     ok.
 
 
@@ -419,19 +448,47 @@ code_change(_, State, _) ->
 
 %%-- Internal Functions
 
+docall(Port, Cmd, Args) ->
+    binary_to_term( erlang:port_control( Port, Cmd, term_to_binary(Args) )).
+docall(Port, Cmd) -> docall(Port, Cmd, undefined).
+
+
+render_buf(Port, {_, _, []}) -> docall(Port, ?REFRESH);
+render_buf(Port, {Y, X, [Line | Ls]}) ->
+    S = if is_tuple(Line) -> tuple_to_list(Line); is_list(Line) -> Line end,
+    docall(Port, ?ADDCHNSTR, {Y, X, length(S), S}),
+    render_buf(Port, {Y+1, X, Ls}),
+    ok.
+
+load_doc(#doc{root=XRoot}=Doc, #screen{doc=none}=State) ->
+    doc_backdrop(Doc, State),
+    ncchan:propagate(XRoot, ?EV_LOAD),
+    State#screen{doc=Doc};
+
+load_doc(#doc{root=XRoot}=Doc, #screen{doc=OldDoc}=State) ->
+    ncchan:propagate(OldDoc#doc.root, ?EV_UNLOAD),
+    doc_backdrop(Doc, State),
+    ncchan:propagate(XRoot, ?EV_LOAD),
+    State#screen{doc=Doc}.
+
+doc_backdrop(Doc, State) ->
+    RootTag = Doc#doc.root#xnode.tag,
+    #screen{port=Port, rows=Rows, cols=Cols} = State,
+    Buf = ncbuf:cornerize( 
+                ncbuf:frameborders(RootTag, ncbuf:frameinit(Rows, Cols)),
+                Rows, Cols),
+    render_buf(Port, {0, 0, tuple_to_list(Buf)}),
+    ok.
+
+
 init_pairs(Port, true) -> init_pairs(Port, ?COLOR_PAIR_LIST);
 init_pairs(_, false) -> false;
 
 init_pairs(_, []) -> true;
 init_pairs(Port, [{N, Fg, Bg} | CPairs]) -> 
-    do_call(Port, ?INIT_PAIR, {N, Fg, Bg}),
+    docall(Port, ?INIT_PAIR, {N, Fg, Bg}),
     init_pairs(Port, CPairs).
 
-
-do_call(Port, Cmd, Args) ->
-    binary_to_term(erlang:port_control(Port, Cmd, term_to_binary(Args))).
-
-do_call(Port, Cmd) -> do_call(Port, Cmd, undefined).
 
 
 load_driver() ->
@@ -443,8 +500,3 @@ load_driver() ->
           end,
     erl_ddll:load(Dir, "ncdrv").
 
-
-shutdown_doms([]) -> shutdown;
-shutdown_doms([{_, RootNode} | Apps]) ->
-    ncnode:shutdown(RootNode),
-    shutdown_doms(Apps).

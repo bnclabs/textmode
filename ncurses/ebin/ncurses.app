@@ -2,7 +2,7 @@
     [ {description,  "NCurses interface"},
       {vsn,          "0.1.0"},
       {modules,      [ncurses, ncdrv, ncnode, ncbuf, ncdom, nc_examples,
-                      ncchan]},
+                      ncchan, ncpath, tree]},
       {registered,   [ncurses, ncdrv]},
       {mod,          {ncurses, []}},
       {env,          [{childspec,

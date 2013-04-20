@@ -75,13 +75,12 @@ void do_initscr(state *st);
 void do_endwin(state *st);
 
 // for window refresh
-void do_wrefresh(state *st);
-void do_wnoutrefresh(state *st);
+void do_refresh(state *st);
 void do_doupdate(state *st);
-void do_werase(state *st);
-void do_wclear(state *st);
-void do_wclrtobot(state *st);
-void do_wclrtoeol(state *st);
+void do_erase(state *st);
+void do_clear(state *st);
+void do_clrtobot(state *st);
+void do_clrtoeol(state *st);
 
 // for input options
 void do_cbreak(state *st);
@@ -94,19 +93,19 @@ void do_keypad(state *st);
 void do_nodelay(state *st);
 void do_halfdelay(state *st);
 void do_notimeout(state *st);
-void do_wtimeout(state *st);
+void do_timeout(state *st);
 
 // for doing character, string and line output
-void do_waddch(state *st);
-void do_wechochar(state *st);
-void do_wdelch(state *st);
-void do_waddnstr(state *st);
-void do_waddchnstr(state *st);
-void do_wdeleteln(state *st);
-void do_winsdelln(state *st);
-void do_winsertln(state *st);
-void do_winsch(state *st);
-void do_winsnstr(state *st);
+void do_addch(state *st);
+void do_echochar(state *st);
+void do_delch(state *st);
+void do_insch(state *st);
+void do_addnstr(state *st);
+void do_addchnstr(state *st);
+void do_insnstr(state *st);
+void do_deleteln(state *st);
+void do_insdelln(state *st);
+void do_insertln(state *st);
 
 // for attribute settings
 void do_color_set(state *st);
@@ -126,17 +125,17 @@ void do_ungetch(state *st);
 void do_has_key(state *st);
 void do_inch(state *st);
 void do_innstr(state *st);
+void do_inchnstr(state *st);
 
+void do_move(state *st);
 void do_curs_set(state *st);
-void do_curs_set(state *st);
-void do_wattron(state *st);
-void do_wattroff(state *st);
+
 void do_nl(state *st);
 void do_nonl(state *st);
 void do_scrollok(state *st);
+
 void do_newwin(state *st);
 void do_delwin(state *st);
-void do_wmove(state *st);
 void do_hline(state *st);
 void do_vline(state *st);
 void do_wborder(state *st);
@@ -189,13 +188,12 @@ static ErlDrvSSizeT control(ErlDrvData drvstate, unsigned int command,
   case INITSCR: do_initscr(st); break;
   case ENDWIN: do_endwin(st); break;
   // window refresh
-  case WREFRESH: do_wrefresh(st); break;
-  case WNOUTREFRESH: do_wnoutrefresh(st); break;
+  case REFRESH: do_refresh(st); break;
   case DOUPDATE: do_doupdate(st); break;
-  case WERASE: do_werase(st); break;
-  case WCLEAR: do_wclear(st); break;
-  case WCLRTOBOT: do_wclrtobot(st); break;
-  case WCLRTOEOL: do_wclrtoeol(st); break;
+  case ERASE: do_erase(st); break;
+  case CLEAR: do_clear(st); break;
+  case CLRTOBOT: do_clrtobot(st); break;
+  case CLRTOEOL: do_clrtoeol(st); break;
   // input options
   case RAW: do_raw(st); break;
   case NORAW: do_noraw(st); break;
@@ -207,18 +205,18 @@ static ErlDrvSSizeT control(ErlDrvData drvstate, unsigned int command,
   case NODELAY: do_nodelay(st); break;
   case HALFDELAY: do_halfdelay(st); break;
   case NOTIMEOUT: do_notimeout(st); break;
-  case WTIMEOUT: do_wtimeout(st); break;
+  case TIMEOUT: do_timeout(st); break;
   // do character, string, line output
-  case WADDCH: do_waddch(st); break;
-  case WECHOCHAR: do_wechochar(st); break;
-  case WDELCH: do_wdelch(st); break;
-  case WADDNSTR: do_waddnstr(st); break;
-  case WADDCHNSTR: do_waddchnstr(st); break;
-  case WDELETELN: do_wdeleteln(st); break;
-  case WINSDELLN: do_winsdelln(st); break;
-  case WINSERTLN: do_winsertln(st); break;
-  case WINSCH: do_winsch(st); break;
-  case WINSNSTR: do_winsnstr(st); break;
+  case ADDCH: do_addch(st); break;
+  case ECHOCHAR: do_echochar(st); break;
+  case DELCH: do_delch(st); break;
+  case INSCH: do_insch(st); break;
+  case ADDNSTR: do_addnstr(st); break;
+  case ADDCHNSTR: do_addchnstr(st); break;
+  case DELETELN: do_deleteln(st); break;
+  case INSDELLN: do_insdelln(st); break;
+  case INSERTLN: do_insertln(st); break;
+  case INSNSTR: do_insnstr(st); break;
   // do attribute settings
   case COLOR_SET: do_color_set(st); break;
   case ATTRSET: do_attrset(st); break;
@@ -236,18 +234,13 @@ static ErlDrvSSizeT control(ErlDrvData drvstate, unsigned int command,
   case HAS_KEY: do_has_key(st); break;
   case INCH: do_inch(st); break;
   case INNSTR: do_innstr(st); break;
+  case INCHNSTR: do_inchnstr(st); break;
 
-  case NEWWIN: do_newwin(st); break;
-  case DELWIN: do_delwin(st); break;
-  case MOVE: do_wmove(st); break;
+  case MOVE: do_move(st); break;
   case CURS_SET: do_curs_set(st); break;
-  case HLINE: do_hline(st); break;
-  case VLINE: do_vline(st); break;
   case NL: do_nl(st); break;
   case NONL: do_nonl(st); break;
   case SCROLLOK: do_scrollok(st); break;
-  case WBORDER: do_wborder(st); break;
-  case BOX: do_box(st); break;
   default: break;
   }
 
@@ -275,40 +268,32 @@ void do_curses_version(state *st) {
 }
 
 void do_getyx(state *st) {
-  long slot;
   int x, y;
-  ei_decode_long(st->args, &(st->index), &slot);
-  getyx(st->win[slot], y, x);
+  getyx(st->win[0], y, x);
   tuple(&(st->eixb), 2);
   integer(&(st->eixb), y);
   integer(&(st->eixb), x);
 }
 
 void do_getbegyx(state *st) {
-  long slot;
   int x, y;
-  ei_decode_long(st->args, &(st->index), &slot);
-  getbegyx(st->win[slot], y, x);
+  getbegyx(st->win[0], y, x);
   tuple(&(st->eixb), 2);
   integer(&(st->eixb), y);
   integer(&(st->eixb), x);
 }
 
 void do_getmaxyx(state *st) {
-  long slot;
   int x, y;
-  ei_decode_long(st->args, &(st->index), &slot);
-  getmaxyx(st->win[slot], y, x);
+  getmaxyx(st->win[0], y, x);
   tuple(&(st->eixb), 2);
   integer(&(st->eixb), y);
   integer(&(st->eixb), x);
 }
 
 void do_getparyx(state *st) {
-  long slot;
   int x, y;
-  ei_decode_long(st->args, &(st->index), &slot);
-  getparyx(st->win[slot], y, x);
+  getparyx(st->win[0], y, x);
   tuple(&(st->eixb), 2);
   integer(&(st->eixb), y);
   integer(&(st->eixb), x);
@@ -331,47 +316,38 @@ void do_endwin(state *st) {
 }
 
 // window refresh
-void do_wrefresh(state *st) {
-  long slot;
-  ei_decode_long(st->args, &(st->index), &slot);
-  encode_ok_reply(st, wrefresh(st->win[slot]));
-}
-
-void do_wnoutrefresh(state *st) {
-  long slot;
-  ei_decode_long(st->args, &(st->index), &slot);
-  encode_ok_reply(st, wnoutrefresh(st->win[slot]));
+void do_refresh(state *st) {
+  encode_ok_reply(st, refresh());
 }
 
 void do_doupdate(state *st) {
   encode_ok_reply(st, doupdate());
 }
 
-void do_werase(state *st) {
-  long slot;
-  ei_decode_long(st->args, &(st->index), &slot);
-  encode_ok_reply(st, werase(st->win[slot]));
+void do_erase(state *st) {
+  encode_ok_reply(st, erase());
 }
 
-void do_wclear(state *st) {
-  long slot;
-  ei_decode_long(st->args, &(st->index), &slot);
-  encode_ok_reply(st, wclear(st->win[slot]));
+void do_clear(state *st) {
+  encode_ok_reply(st, clear());
 }
 
-void do_wclrtobot(state *st) {
-  long slot;
-  ei_decode_long(st->args, &(st->index), &slot);
-  encode_ok_reply(st, wclear(st->win[slot]));
+void do_clrtobot(state *st) {
+  encode_ok_reply(st, clrtobot());
 }
 
-void do_wclrtoeol(state *st) {
-  long slot;
-  ei_decode_long(st->args, &(st->index), &slot);
-  encode_ok_reply(st, wclear(st->win[slot]));
+void do_clrtoeol(state *st) {
+  encode_ok_reply(st, clrtoeol());
 }
 
 // input options
+void do_raw(state *st) {
+  encode_ok_reply(st, raw());
+}
+void do_noraw(state *st) {
+  encode_ok_reply(st, noraw());
+}
+
 void do_cbreak(state *st) {
   encode_ok_reply(st, cbreak());
 }
@@ -387,30 +363,16 @@ void do_noecho(state *st) {
   encode_ok_reply(st, noecho());
 }
 
-void do_raw(state *st) {
-  encode_ok_reply(st, raw());
-}
-void do_noraw(state *st) {
-  encode_ok_reply(st, noraw());
-}
-
 void do_keypad(state *st) {
-  int arity, bf;
-  long slot;
-
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
+  int bf;
   ei_decode_boolean(st->args, &(st->index), &bf);
-  encode_ok_reply(st, keypad(st->win[slot], bf));
+  encode_ok_reply(st, keypad(st->win[0], bf));
 }
 
 void do_nodelay(state *st) {
-  int arity, bf;
-  long slot;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
+  int bf;
   ei_decode_boolean(st->args, &(st->index), &bf);
-  encode_ok_reply(st, nodelay(st->win[slot], bf));
+  encode_ok_reply(st, nodelay(st->win[0], bf));
 }
 
 void do_halfdelay(state *st) {
@@ -419,103 +381,103 @@ void do_halfdelay(state *st) {
   encode_ok_reply(st, halfdelay(delay));
 }
 
-void do_notimeout(state *st) {
-  int arity, bf;
-  long slot;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_boolean(st->args, &(st->index), &bf);
-  encode_ok_reply(st, notimeout(st->win[slot], bf));
+void do_timeout(state *st) {
+  long delay;
+  ei_decode_long(st->args, &(st->index), &delay);
+  timeout(delay);
+  encode_ok_reply(st, OK);
 }
 
-void do_wtimeout(state *st) {
-  int arity;
-  long slot, delay;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &delay);
-  wtimeout(st->win[slot], delay);
-  encode_ok_reply(st, OK);
+void do_notimeout(state *st) {
+  int bf;
+  ei_decode_boolean(st->args, &(st->index), &bf);
+  encode_ok_reply(st, notimeout(st->win[0], bf));
 }
 
 
 // do character, string and line output
-void do_waddch(state *st) {
+void do_addch(state *st) {
   int arity;
-  long slot, y, x;
+  long y, x;
   chtype ch=0;
   ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  if( arity == 2 ) {
+  if( arity == 1 ) {
     ei_decode_long(st->args, &(st->index), (long *)&ch);
-    encode_ok_reply(st, waddch(st->win[slot], ch));
-  } else if( arity == 4 ) {
+    encode_ok_reply(st, addch(ch));
+  } else if( arity == 3 ) {
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
     ei_decode_long(st->args, &(st->index), (long *)&ch);
-    encode_ok_reply(st, mvwaddch(st->win[slot], (int)y, (int)x, ch));
+    encode_ok_reply(st, mvaddch((int)y, (int)x, ch));
   }
 }
 
-void do_wechochar(state *st) {
-  int arity;
-  long slot;
+void do_echochar(state *st) {
   chtype ch = 0;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
   ei_decode_long(st->args, &(st->index), (long *)&ch);
-  encode_ok_reply(st, wechochar(st->win[slot], ch));
+  encode_ok_reply(st, echochar(ch));
 }
 
-void do_wdelch(state *st) {
+void do_delch(state *st) {
   int arity;
-  long slot, y, x;
+  long y, x;
+  ei_decode_tuple_header(st->args, &(st->index), &arity);
+  if( arity == 0 ) {
+    encode_ok_reply(st, delch());
+  } else if( arity == 2 ) {
+    ei_decode_long(st->args, &(st->index), &y);
+    ei_decode_long(st->args, &(st->index), &x);
+    encode_ok_reply(st, mvdelch((int)y, (int)x));
+  }
+}
+
+void do_insch(state *st) {
+  int arity;
+  long y, x;
+  chtype ch=0;
   ei_decode_tuple_header(st->args, &(st->index), &arity);
   if( arity == 1 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
-    encode_ok_reply(st, wdelch(st->win[slot]));
+    ei_decode_long(st->args, &(st->index), (long *)&ch);
+    encode_ok_reply(st, insch((chtype)ch));
   } else if( arity == 3 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
-    encode_ok_reply(st, mvwdelch(st->win[slot], (int)y, (int)x));
+    ei_decode_long(st->args, &(st->index), (long *)&ch);
+    encode_ok_reply(st, mvinsch((int)y, (int)x, (chtype)ch));
   }
 }
 
-void do_waddnstr(state *st) {
+void do_addnstr(state *st) {
   int arity;
-  long slot, y, x, strlen;
+  long y, x, strlen;
   char *str;
 
   ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  if( arity == 3 ) {
+  if( arity == 2 ) {
     ei_decode_long(st->args, &(st->index), &strlen);
     str = (char *)driver_alloc(strlen);
     ei_decode_string(st->args, &(st->index), str);
-    encode_ok_reply(st, waddnstr(st->win[slot], str, (int)strlen));
+    encode_ok_reply(st, addnstr(str, (int)strlen));
     driver_free(str);
-  } else if( arity == 5 ) {
+  } else if( arity == 4 ) {
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
     ei_decode_long(st->args, &(st->index), &strlen);
     str = (char *)driver_alloc(strlen);
     ei_decode_string(st->args, &(st->index), str);
-    encode_ok_reply(
-        st, mvwaddnstr(st->win[slot], (int)y, (int)x, str, (int)strlen));
+    encode_ok_reply( st, mvaddnstr((int)y, (int)x, str, (int)strlen));
     driver_free(str);
   }
 }
 
-void do_waddchnstr(state *st) {
+void do_addchnstr(state *st) {
   int arity, code, i;
-  long slot, y, x, strlen;
+  long y, x, strlen;
   chtype *chstr;
   char *str;
 
   ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  if( arity == 3 ) {
+  if( arity == 2 ) {
     ei_decode_long(st->args, &(st->index), &strlen);
     chstr = (chtype *)driver_alloc(strlen * sizeof(chtype));
     str = (char *)driver_alloc(strlen);
@@ -525,11 +487,10 @@ void do_waddchnstr(state *st) {
     } else {
       decode_string_chtype(st, chstr);
     }
-    encode_ok_reply(st,
-        waddchnstr(st->win[slot], (const chtype*)chstr, (int)strlen));
+    encode_ok_reply(st, addchnstr((const chtype*)chstr, (int)strlen));
     driver_free(chstr);
     driver_free(str);
-  } else if( arity == 5 ) {
+  } else if( arity == 4 ) {
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
     ei_decode_long(st->args, &(st->index), &strlen);
@@ -542,148 +503,97 @@ void do_waddchnstr(state *st) {
       decode_string_chtype(st, chstr);
     }
     encode_ok_reply( st,
-        mvwaddchnstr(st->win[slot], (int)y, (int)x, (const chtype*)chstr,
-                     (int)strlen));
+        mvaddchnstr((int)y, (int)x, (const chtype*)chstr, (int)strlen));
     driver_free(chstr);
     driver_free(str);
   }
 }
 
-void do_wdeleteln(state *st) {
+void do_insnstr(state *st) {
   int arity;
-  long slot;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  encode_ok_reply(st, wdeleteln(st->win[slot]));
-}
-
-void do_winsdelln(state *st) {
-  int arity;
-  long slot, n;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &n);
-  encode_ok_reply(st, winsdelln(st->win[slot], n));
-}
-
-void do_winsertln(state *st) {
-  int arity;
-  long slot;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  encode_ok_reply(st, winsertln(st->win[slot]));
-}
-
-void do_winsch(state *st) {
-  int arity;
-  long slot, y, x;
-  chtype ch=0;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  if( arity == 2 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
-    ei_decode_long(st->args, &(st->index), (long *)&ch);
-    encode_ok_reply(st, winsch(st->win[slot], (chtype)ch));
-  } else if( arity == 4 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
-    ei_decode_long(st->args, &(st->index), &y);
-    ei_decode_long(st->args, &(st->index), &x);
-    ei_decode_long(st->args, &(st->index), (long *)&ch);
-    encode_ok_reply(st, mvwinsch(st->win[slot], (int)y, (int)x, (chtype)ch));
-  }
-}
-
-void do_winsnstr(state *st) {
-  int arity;
-  long slot, y, x, strlen;
+  long y, x, strlen;
   char str[MAX_STRLEN];
 
   ei_decode_tuple_header(st->args, &(st->index), &arity);
   if( arity == 3 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
     ei_decode_long(st->args, &(st->index), &strlen);
     ei_decode_string(st->args, &(st->index), str);
-    encode_ok_reply(st, winsnstr(st->win[slot], str, (int)strlen));
+    encode_ok_reply(st, insnstr(str, (int)strlen));
   } else if( arity == 5 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
     ei_decode_long(st->args, &(st->index), &strlen);
     ei_decode_string(st->args, &(st->index), str);
-    encode_ok_reply(
-        st, mvwinsnstr(st->win[slot], (int)y, (int)x, str, (int)strlen));
+    encode_ok_reply( st, mvinsnstr((int)y, (int)x, str, (int)strlen));
   }
+}
+
+void do_wdeleteln(state *st) {
+  encode_ok_reply(st, deleteln());
+}
+
+void do_insdelln(state *st) {
+  long n;
+  ei_decode_long(st->args, &(st->index), &n);
+  encode_ok_reply(st, insdelln(n));
+}
+
+void do_insertln(state *st) {
+  encode_ok_reply(st, insertln());
 }
 
 
 // do attribute settings
 void do_color_set(state *st) {
-  int arity;
-  long slot, pair;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
+  long pair;
   ei_decode_long(st->args, &(st->index), &pair);
-  encode_ok_reply(st, wcolor_set(st->win[slot], (short)pair, NULL));
+  encode_ok_reply(st, color_set((short)pair, NULL));
 }
 
 void do_attrset(state *st) {
-  int arity;
-  long slot, attr;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
+  long attr;
   ei_decode_long(st->args, &(st->index), &attr);
-  encode_ok_reply(st, wattrset(st->win[slot], (int)attr));
+  encode_ok_reply(st, attrset((int)attr));
 }
 
 void do_attroff(state *st) {
-  int arity;
-  long slot, attr;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
+  long attr;
   ei_decode_long(st->args, &(st->index), &attr);
-  encode_ok_reply(st, wattroff(st->win[slot], (int)attr));
+  encode_ok_reply(st, attroff((int)attr));
 }
 
 void do_attron(state *st) {
-  int arity;
-  long slot, attr;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
+  long attr;
   ei_decode_long(st->args, &(st->index), &attr);
-  encode_ok_reply(st, wattron(st->win[slot], (int)attr));
+  encode_ok_reply(st, attron((int)attr));
 }
 
 void do_attr_get(state *st) {
-  int arity, code;
-  long slot;
+  int code;
   attr_t attr;
   short colorpair;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  code = wattr_get(st->win[slot], &attr, &colorpair, (void *)NULL); 
+  code = attr_get(&attr, &colorpair, (void *)NULL); 
   encode_attr_get_reply(st, code, (int)attr, colorpair);
 }
 
 void do_chgat(state *st) {
   int arity;
-  long slot, y, x, n, attr, pair;
+  long y, x, n, attr, pair;
   ei_decode_tuple_header(st->args, &(st->index), &arity);
   if( arity == 4 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
     ei_decode_long(st->args, &(st->index), &n);
     ei_decode_long(st->args, &(st->index), &attr);
     ei_decode_long(st->args, &(st->index), &pair);
     encode_ok_reply(st, 
-      wchgat(st->win[slot], (int)n, (attr_t)attr, (short)pair,
-             (const void*)NULL));
+      chgat((int)n, (attr_t)attr, (short)pair, (const void*)NULL));
   } else if( arity == 6 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
     ei_decode_long(st->args, &(st->index), &n);
     ei_decode_long(st->args, &(st->index), &attr);
     ei_decode_long(st->args, &(st->index), &pair);
     encode_ok_reply( st,
-      mvwchgat(st->win[slot], (int)y, (int)x,
+      mvchgat( (int)y, (int)x,
                (int)n, (attr_t)attr, (short)pair, (const void*)NULL));
   } 
 }
@@ -742,35 +652,32 @@ void do_has_key(state *st) {
 
 void do_inch(state *st) {
   int arity;
-  long slot, y, x;
+  long y, x;
   ei_decode_tuple_header(st->args, &(st->index), &arity);
-  if( arity == 1 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
-    integer(&(st->eixb), (int)winch(st->win[slot]));
-  } else if( arity == 3 ) {
-    ei_decode_long(st->args, &(st->index), &slot);
+  if( arity == 0 ) {
+    integer(&(st->eixb), (int)inch());
+  } else if( arity == 2 ) {
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
-    integer(&(st->eixb), (int)mvwinch(st->win[slot], y, x));
+    integer(&(st->eixb), (int)mvinch(y, x));
   } 
 }
 
 void do_innstr(state *st) {
   int arity;
-  long slot, y, x, n;
+  long y, x, n;
   char str[MAX_STRLEN];
   ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  if( arity == 2 ) {
+  if( arity == 1 ) {
     ei_decode_long(st->args, &(st->index), &n);
-    winnstr(st->win[slot], str, n);
+    innstr(str, n);
     str[n] = 0;
     encode_string_reply(st, str);
-  } else if( arity == 4 ) {
+  } else if( arity == 3 ) {
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
     ei_decode_long(st->args, &(st->index), &n);
-    mvwinnstr(st->win[slot], y, x, str, n);
+    mvinnstr(y, x, str, n);
     str[n] = 0;
     encode_string_reply(st, str);
   } 
@@ -778,18 +685,17 @@ void do_innstr(state *st) {
 
 void do_inchnstr(state *st) {
   int arity, code, i;
-  long slot, y, x, n;
+  long y, x, n;
   chtype str_attr[MAX_STRLEN];
   ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  if( arity == 2 ) {
+  if( arity == 1 ) {
     ei_decode_long(st->args, &(st->index), &n);
-    code = winchnstr(st->win[slot], str_attr, n);
-  } else if( arity == 4 ) {
+    code = inchnstr(str_attr, n);
+  } else if( arity == 3 ) {
     ei_decode_long(st->args, &(st->index), &y);
     ei_decode_long(st->args, &(st->index), &x);
     ei_decode_long(st->args, &(st->index), &n);
-    code = mvwinchnstr(st->win[slot], y, x, str_attr, n);
+    code = mvinchnstr(y, x, str_attr, n);
   } 
   if( code == OK ) {
     list(&(st->eixb), n);
@@ -801,40 +707,21 @@ void do_inchnstr(state *st) {
   }
 }
 
-void do_wmove(state *st) {
+
+void do_move(state *st) {
   int arity;
-  long slot, y, x;
+  long y, x;
   ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
   ei_decode_long(st->args, &(st->index), &y);
   ei_decode_long(st->args, &(st->index), &x);
-  encode_ok_reply(st, wmove(st->win[slot], (int)y, (int)x));
+  encode_ok_reply(st, move((int)y, (int)x));
 }
-
 
 void do_curs_set(state *st) {
   long flag;
   ei_decode_long(st->args, &(st->index), &flag);
   curs_set((int)flag);
   ok(st);
-}
-
-void do_wattron(state *st) {
-  int arity;
-  long slot, attrs;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &attrs);
-  encode_ok_reply(st, wattron(st->win[slot], (int)attrs));
-}
-
-void do_wattroff(state *st) {
-  int arity;
-  long slot, attrs;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &attrs);
-  encode_ok_reply(st, wattroff(st->win[slot], (int)attrs));
 }
 
 void do_nl(state *st) {
@@ -846,110 +733,9 @@ void do_nonl(state *st) {
 }
 
 void do_scrollok(state *st) {
-  int arity;
   int bf;
-  long slot;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
   ei_decode_boolean(st->args, &(st->index), &bf);
-  encode_ok_reply(st, scrollok(st->win[slot], bf));
-}
-
-void do_newwin(state *st) {
-  int slot = findfreewindowslot(st);
-  if (slot > 0) {
-    int arity;
-    long height, width, starty, startx;
-    ei_decode_tuple_header(st->args, &(st->index), &arity);
-    ei_decode_long(st->args, &(st->index), &height);
-    ei_decode_long(st->args, &(st->index), &width);
-    ei_decode_long(st->args, &(st->index), &starty);
-    ei_decode_long(st->args, &(st->index), &startx);
-    st->win[slot] = newwin(height, width, starty, startx);
-    integer(&(st->eixb), slot);
-  } else {
-    integer(&(st->eixb), -1);
-  }
-}
-
-void do_delwin(state *st) {
-  long slot;
-  ei_decode_long(st->args, &(st->index), &slot);
-  if (slot == 0) {
-    boolean(st, FALSE);
-  } else if (st->win[slot] == NULL) {
-    boolean(st, FALSE);
-  } else if (st->win[slot] != NULL) {
-    delwin(st->win[slot]);
-    st->win[slot] = NULL;
-    boolean(st, TRUE);
-  }
-}
-
-void do_hline(state *st) {
-  int arity;
-  long slot, ch, y, x, max;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  if( arity==3 ) {
-    ei_decode_long(st->args, &(st->index), &ch);
-    ei_decode_long(st->args, &(st->index), &max);
-    encode_ok_reply(st, whline(st->win[slot], (chtype)ch, (int)max));
-  } else if ( arity==5 ) {
-    ei_decode_long(st->args, &(st->index), &y);
-    ei_decode_long(st->args, &(st->index), &x);
-    ei_decode_long(st->args, &(st->index), &ch);
-    ei_decode_long(st->args, &(st->index), &max);
-    encode_ok_reply(st,
-        mvwhline(st->win[slot], (int)y, (int)x, (chtype)ch, (int)max));
-  }
-}
-
-void do_vline(state *st) {
-  int arity;
-  long slot, ch, y, x, max;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  if( arity==3 ) {
-    ei_decode_long(st->args, &(st->index), &ch);
-    ei_decode_long(st->args, &(st->index), &max);
-    encode_ok_reply(st, wvline(st->win[slot], (chtype)ch, (int)max));
-  } else if( arity==5 ) {
-    ei_decode_long(st->args, &(st->index), &y);
-    ei_decode_long(st->args, &(st->index), &x);
-    ei_decode_long(st->args, &(st->index), &ch);
-    ei_decode_long(st->args, &(st->index), &max);
-    encode_ok_reply(st,
-        mvwvline(st->win[slot], (int)y, (int)x, (chtype)ch, (int)max));
-  }
-}
-
-void do_wborder(state *st) {
-  int arity;
-  long slot, ls, rs, ts, bs, tl, tr, bl, br;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &ls);
-  ei_decode_long(st->args, &(st->index), &rs);
-  ei_decode_long(st->args, &(st->index), &ts);
-  ei_decode_long(st->args, &(st->index), &bs);
-  ei_decode_long(st->args, &(st->index), &tl);
-  ei_decode_long(st->args, &(st->index), &tr);
-  ei_decode_long(st->args, &(st->index), &bl);
-  ei_decode_long(st->args, &(st->index), &br);
-  encode_ok_reply(st, wborder(st->win[slot], (chtype)ls, (chtype)rs, (chtype)ts,
-			      (chtype)bs, (chtype)tl, (chtype)tr, (chtype)bl,
-			      (chtype)br));
-}
-
-void do_box(state *st) {
-  int arity;
-  long slot, verch, horch;
-  ei_decode_tuple_header(st->args, &(st->index), &arity);
-  ei_decode_long(st->args, &(st->index), &slot);
-  ei_decode_long(st->args, &(st->index), &verch);
-  ei_decode_long(st->args, &(st->index), &horch);
-  encode_ok_reply(st, box(st->win[slot], (chtype)verch, (chtype)horch));
+  encode_ok_reply(st, scrollok(st->win[0], bf));
 }
 
 

@@ -2,36 +2,27 @@
 -author('prataprc@gmail.com').
 
 % Module API
--export([cursor_frames/5, bordercolor/1]).
+-export([frameinit/2, bordercolor/1, frameborders/2, cornerize/3]).
 
 -include("ncurses.hrl").
 -include("ncdom.hrl").
-
-
-cursor_frames(_Y, _X, Rows, Cols, RootNode) ->
-    Buf = cornerize( frameborders(RootNode, frameinit(Rows,Cols)), Rows, Cols ),
-    BufL = lists:map( fun erlang:tuple_to_list/1, tuple_to_list(Buf) ),
-    [ ncdrv:addchstr(R, 0, S) 
-      || {R,S} <- lists:zip( lists:seq(0,Rows-1), BufL ) ],
-    ncdrv:refresh(),
-    Buf.
 
 
 frameinit(Rows, Cols) ->
     erlang:list_to_tuple( lists:duplicate(Rows, erlang:make_tuple(Cols, $ ))).
 
 
-frameborders(#node{ box=#box{border={Bt, Br, Bb, Bl}} }=Node, Buf) ->
+frameborders(#tag{ box=#box{border={Bt, Br, Bb, Bl}} }=Tag, Buf) ->
     NBuf = frameborder(left, Bl,
                 frameborder(bottom, Bb, 
                     frameborder(right, Br,
                         frameborder( top, Bt, Buf )))),
-    frameborders(Node#node.content, NBuf);
+    frameborders(Tag#tag.content, NBuf);
 
 frameborders([], Buf) -> Buf;
-frameborders([#text{} | Cs], Buf) -> frameborders(Cs, Buf);
-frameborders([#node{}=CNode | Cs], Buf) ->
-    frameborders( Cs, frameborders( CNode, Buf )).
+frameborders([#text{} | Es], Buf) -> frameborders(Es, Buf);
+frameborders([#tag{}=Tag | Es], Buf) ->
+    frameborders( Es, frameborders( Tag, Buf )).
 
 
 cornerize(Buf, Rows, Cols) ->
@@ -49,25 +40,25 @@ cornerize(Buf, Yb, Xb, Rows, Cols) ->
             cornerize(Buf, Yb, Xb+1, Rows, Cols)
     end.
 
-frameborder(top, none, Buf) -> Buf;
+frameborder(top, {none, none, none, none}, Buf) -> Buf;
 frameborder(top, {_, _, 0, _, _}, Buf) -> Buf;
 frameborder(top, {Y, X, Len, Ch, Cl}, Buf) ->
     frameborder(
         top, {Y, X+1, Len-1, Ch, Cl}, setchar(Buf, Y+1, X+1, ?ACS_HLINE) );
 
-frameborder(right, none, Buf) -> Buf;
+frameborder(right, {none, none, none, none}, Buf) -> Buf;
 frameborder(right, {_, _, 0, _, _}, Buf) -> Buf;
 frameborder(right, {Y, X, Len, Ch, Cl}, Buf) ->
     frameborder(
         right, {Y+1, X, Len-1, Ch, Cl}, setchar(Buf, Y+1, X+1, ?ACS_VLINE) );
 
-frameborder(bottom, none, Buf) -> Buf;
+frameborder(bottom, {none, none, none, none}, Buf) -> Buf;
 frameborder(bottom, {_, _, 0, _, _}, Buf) -> Buf;
 frameborder(bottom, {Y, X, Len, Ch, Cl}, Buf) ->
     frameborder(
         bottom, {Y, X-1, Len-1, Ch, Cl}, setchar(Buf, Y+1, X+1, ?ACS_HLINE) );
 
-frameborder(left, none, Buf) -> Buf;
+frameborder(left, {none, none, none, none}, Buf) -> Buf;
 frameborder(left, {_, _, 0, _, _}, Buf) -> Buf;
 frameborder(left, {Y, X, Len, Ch, Cl}, Buf) ->
     frameborder(

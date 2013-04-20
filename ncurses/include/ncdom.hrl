@@ -1,41 +1,31 @@
--record(nodew, {
-            pproc,
-            cprocs,
-            pid,
-            rootnode,
-            node,
-            box,
-            view
+-record( tag, {
+            name,       % Atom of process name constructed using appname,
+                        % pagepath and id-attribute. Node process is
+                        % registered with this name.
+            docpath,
+            tagname,    % tag's tag-name
+            attributes, % List of attributes, [{name, value}, ...]
+            content,    % Child elements as list of #text and #tag records
+            box,        % #box record
+            view        % #view record.
        }).
 
--record(node, {
-            name,
-            pagepath,
-            pid,
-            tag,
-            attributes,
-            content,
-            box
+-record( text, {
+            content     % Text string inside the tag.
        }).
 
--record(text, {
-            content
-       }).
-
-% box corresponds to a node after taking Node's margin attribute into account.
--record(box, {
-            y,
-            x,
-            rows,
-            cols,
-            margin,
-            border,
-            padding,
-            view
+% box corresponds to a tag-node after taking Node's margin attribute into 
+% account.
+-record( box, {
+            y,          % Row offset, indexed from 0.
+            x,          % Column offset, indexed from 0.
+            rows,       % Number of rows starting from Y offset.
+            cols,       % Number of columns starting from X offset.
+            border      % Tuple of four border elements, refer borderall record.
        }).
 
 % view will take into account border and padding of the box.
--record(view, {
+-record( view, {
             y,      % window relative row offset where the border starts.
             x,      % window relative column offset where the border starts.
             rows,   % number of rows starting from y, including y.

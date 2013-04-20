@@ -221,18 +221,32 @@
 
 % NCurses screen state
 -record( screen, {
-            port,
-            rows,
-            cols,
-            getch,
-            onquit,
-            app={none, none, none}, % {appname, window_node, root_node}
-            apps=[]         % list of {appname, root_node}
+            ref,        % reference to curses driver. constant
+            port,       % ncurses port driver. constant
+            rows,       % ncurses no of rows. varies on resize.
+            cols,       % ncurses no of cols. varies on resize.
+            doc=none    % `doc` record. varies on ncdrv:doc/1 call.
          }).
 
+-record( doc, {
+            docpath,    % string of doc-path url. constant
+            root=none,  % root xnode record. contant.
+            focus=none  % xnode record in focus. varies TODO : How ?
+         }).
+
+-record( xnode, {
+            tag,        % #tag record. contant.
+            pid=none,   % process id for this node. constant.
+            mod=none,   % call-back module. contant.
+            xpids=[],   % list of pids to curses drivers. varies.
+            cnodes=[],  % list of #xnode records. contant
+            state=none  % node-state. varies
+       }).
+
+
+
 -record( evtsys, {
-            channels,   % list of channels record
-            appdoms     % { app_path, root_node }
+            channels=[] % list of `channel` record.
          }).
 
 -record( channel, {
@@ -241,6 +255,33 @@
          }).
 
 -record( event, {
-            name,       % can be any erlang term.
-            value       % event payload
+            from,       % Indentifying sender.
+            id,         % Unique identification of the event.
+            msg,        % event payload, `evmsg` record.
+            stop=false  % stop chaining this event.
          }).
+
+-record( domev, {
+            xnode       % xnode record which was originally targeted.
+         }).
+
+-define(EV_XNODE,       #event{id={tm, xnode}}).
+-define(EV_LOAD,        #event{id={dom, load}}).
+-define(EV_UNLOAD,      #event{id={dom, unload}}).
+-define(EV_KEYPRESS(),  #event{id={dom, keypress}}).
+
+% events,
+%
+%   error
+%   haschange
+%   message
+%   popstate
+%   resize
+%   storage
+%   
+%   blur
+%   focus
+%   change
+%   contextmenu
+%
+%   keypress

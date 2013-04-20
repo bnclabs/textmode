@@ -27,32 +27,35 @@ usage() ->
 play("getdom") -> getdom();
 play(What) ->
     application:start(ncurses),
-    ncdrv:current_app({escript, none, none}),
-    case What of
-        "curses" -> curses();
-        "addch" -> addch();
-        "addstr" -> addstr();
-        "addchstr" -> addchstr();
-        "attrs" -> attrs();
-        "coords" -> coords();
-        "ncdom" -> ncdom()
-    end,
-    application:stop(ncurses).
+    ncdrv:register_app(#app{name=escript}),
+    ncdrv:current_app(escript),
+    Res = 
+        case What of
+            "curses" -> curses();
+            "addch" -> addch();
+            "addstr" -> addstr();
+            "addchstr" -> addchstr();
+            "attrs" -> attrs();
+            "coords" -> coords();
+            "ncdom" -> ncdom()
+        end,
+    application:stop(ncurses),
+    Res.
 
 % Get xml dom.
 ncdom() ->
-    Node = ncdom:pagefile(
+    Tag = ncdom:pagefile(
                 sudoku, "/home/pratap/dev/textmode/sudoku/priv/3play.xml"),
-    RootNode = ncdom:boxify({0, 0, 39, 56}, Node),
-    Buf = ncbuf:cursor_frames(0, 0, 39, 56, RootNode),
-    ncdrv:getch(),
-    ok.
+    RootTag = ncdom:boxify({0, 0, 39, 56}, Tag),
+    Buf = ncbuf:render_page(39, 56, RootTag),
+    ncdrv:getch().
+
 
 getdom() ->
-    Node = ncdom:pagefile(
+    Tag = ncdom:pagefile(
                 sudoku, "/home/pratap/dev/textmode/sudoku/priv/3play.xml"),
-    RootNode = ncdom:boxify({0, 0, 39, 56}, Node),
-    Buf = ncbuf:cursor_frames(0, 0, 39, 56, RootNode),
+    RootTag = ncdom:boxify({0, 0, 39, 56}, Tag),
+    Buf = ncbuf:render_page(39, 56, RootTag),
     io:format("~p~n", [Buf]),
     ok.
 

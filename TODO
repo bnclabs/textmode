@@ -1,3 +1,8 @@
+* Interpret color attribute from xml file for box elements and containing
+  text.
+
+* Add focus attribute in XML description.
+
 * Experiment with `setscrreg`, `wsetscrreg` and `scrollok` functions from
   ncurses. Check their man pages for more information.
 

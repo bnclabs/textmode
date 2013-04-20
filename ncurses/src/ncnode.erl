@@ -2,48 +2,101 @@
 -author('prataprc@gmail.com').
 
 % module API
--export([start_link/1]).
+-export([spawndom/1, getfocus/1, xpath/2, flatten/2]).
 
--export([node_handler/1]).
+-export([init/1]).
 
 -include_lib("ncurses.hrl").
 -include_lib("ncdom.hrl").
 
 %---- module API
-start_link({PPid, Node}) -> ?MODULE:start_link({PPid, Node, Node});
-start_link({_, _, Node}=Args) ->
-    Pid = erlang:spawn_link(?MODULE, node_handler, Args),
-    erlang:register( list_to_atom(Node#node.name), Pid ),
-    {ok, Pid}.
+spawndom(Tag) ->
+    Pid = erlang:spawn_link(?MODULE, init, Tag),
+    XNode = ncchan:send_receive(Pid, ?EV_XNODE),
+    {ok, Pid, XNode}.
+
+getfocus([]) -> none;
+getfocus([#xnode{tag=Tag, cnodes=CNodes}=XNode | XNodes]) -> 
+    case ncdom:attr(focus, Tag) of
+        {focus, "default"} -> XNode;
+        false -> case getfocus(CNodes) of none -> getfocus(XNodes); N -> N end
+    end;
+getfocus(#xnode{}=XNode) -> getfocus([XNode]).
+
+
+xpath(#xnode{pid=Pid}=XNode, [#xnode{pid=Pid} | _]) -> [XNode];
+xpath(_, []) -> [];
+xpath(XNode, [#xnode{cnodes=CNodes}=N | Ns]) ->
+    case xpath(XNode, CNodes) of
+        [] -> xpath(XNode, Ns);
+        XPath -> [N | XPath]
+    end.
+
+
+flatten(preorder, #xnode{}=XNode) -> lists:reverse( flatten( XNode, [] )).
+
+
+%add_xdrv(Pid, #xnode{xpids=XPids, cnodes=CNodes}=XNode) ->
+%    Fn = fun(A, B) -> 
+%            case {node(A), node(B)} of
+%                {node(), node()} -> true;
+%                {node(), _} -> true;
+%                _ -> false
+%            end
+%         end,
+%    NCRefs = lists:sort(Fn, [Pid | XPids]),
+%    XNode#xnode{xpids=NCRefs, cnodes=add_xdrv(Pid, CNodes, [])}.
+%
+%add_xdrv(_, [], Acc) -> lists:reverse(Acc);
+%add_xdrv(Pid, [CNode | CNodes], Acc) -> 
+%    add_xdrv(Pid, CNodes, [add_xdrv(Pid, CNode) | Acc]).
+
 
 %---- internal functions
-node_handler({ParentPid, RootNode, Node}) ->
+init(Tag) ->
     process_flag(trap_exit, true),
-    Tup = {self(), RootNode},
-    ChildPids = spawn_kids(Tup, Node#node.content, []),
-    Box = Node#node.box,
-    error_logger:info_msg("ncnode ~p : ~p~n", [Node#node.name, self()]),
-    State = #nodew{pproc=ParentPid,
-                   cprocs=ChildPids,
-                   pid=self(),
-                   rootnode=RootNode,
-                   node=Node,
-                   box=Box,
-                   view=Box#box.view},
-    msgloop(State).
-    
+    erlang:register(Tag#tag.name, self()),
+    Mod = ncdom:attr(callback, Tag),
+    CNodes = spawndoms(Tag#tag.content),
+    error_logger:info_msg("ncnode ~p : ~p~n", [Tag#tag.name, self()]),
+    msgloop( #xnode{tag=Tag, pid=self(), mod=Mod, cnodes=CNodes} ).
+
+
+spawndoms([], Acc) -> lists:reverse( Acc );
+spawndoms([#text{} | CTags], Acc) -> spawndoms(CTags, Acc);
+spawndoms([#tag{}=CTag | CTags], Acc) ->
+    {ok, _XPid, XNode} = ?MODULE:spawndom(CTag),
+    spawndoms(CTags, [XNode | Acc]).
+
+spawndoms(CTags) -> spawndoms(CTags, []).
+
+
 msgloop(State) ->
-    NewState = 
+    NewState =
         receive
-            {_From, shutdown} -> % To be received only for the root node.
-                % TODO : Handle DOM shutdown, by something like `unload`.
-                State
+            {From, shutdown} -> % Incomplete !!
+                From ! State;
+            {From, #event{}=Event} ->
+                case handle(Event, State) of
+                    {reply, Reply, S} -> ncchan:reply(From, Reply), S
+                end
         end,
     msgloop(NewState).
 
-spawn_kids(_, [], Acc) -> lists:reverse( Acc );
-spawn_kids(Tup, [#text{} | CNodes], Acc) -> spawn_kids(Tup, CNodes, Acc);
-spawn_kids(Tup, [#node{}=CNode | CNodes], Acc) ->
-    {ParentPid, RootNode} = Tup,
-    {ok, CPid} = ?MODULE:start_link({ParentPid, RootNode, CNode}),
-    spawn_kids(Tup, CNodes, [CPid | Acc]).
+
+
+%-- event handlers
+handle(?EV_XNODE=_Event, State) ->
+    {reply, State, State};
+
+handle(?EV_LOAD=IEvent, #xnode{mod=Mod, state=XState}=State) ->
+    {OEvent, NodeState1} = erlang:apply(Mod, onload, [IEvent, XState]),
+    {reply, OEvent, State#xnode{state=NodeState1}};
+
+handle(?EV_UNLOAD=IEvent, #xnode{mod=Mod, state=XState}=State) ->
+    NodeState1 = erlang:apply(Mod, onunload, [IEvent, XState]),
+    {reply, ok, State#xnode{state=NodeState1}};
+
+handle(?EV_KEYPRESS()=IEvent, #xnode{mod=Mod, state=XState}=State) ->
+    NodeState1 = erlang:apply(Mod, onkeypress, [IEvent, XState]),
+    {reply, ok, State#xnode{state=NodeState1}}.

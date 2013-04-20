@@ -1,0 +1,131 @@
+***** Window Event Attributes *****
+
+Events triggered for the window object (applies to the <body> tag):
+
+afterprint    New script Script to be run after the document is printed
+beforeprint   New script Script to be run before the document is printed
+beforeunload  New script Script to be run before the document is unloaded
+error         New script Script to be run when an error occur
+haschange     New script Script to be run when the document has changed
+load              script Fires after the page is finished loading
+message       New script Script to be run when the message is triggered
+offline       New script Script to be run when the document goes offline
+online        New script Script to be run when the document comes online
+pagehide      New script Script to be run when the window is hidden
+pageshow      New script Script to be run when the window becomes visible
+popstate      New script Script to be run when the window's history changes
+redo          New script Script to be run when the document performs a redo
+resize        New script Fires when the browser window is resized
+storage       New script Script to be run when a Web Storage area is updated
+undo          New script Script to be run when the document performs an undo
+unload            script Fires once a page has unloaded (or the browser window
+                           has been closed)
+
+***** Form Events *****
+
+Events triggered by actions inside a HTML form (applies to almost all HTML
+elements, but is most used in form elements):
+
+blur              script Fires the moment that the element loses focus
+change            script Fires the moment when the value of the element is
+                           changed
+contextmenu   New script Script to be run when a context menu is triggered
+focus             script Fires the moment when the element gets focus
+formchange    New script Script to be run when a form changes
+forminput     New script Script to be run when a form gets user input
+input         New script Script to be run when an element gets user input
+invalid       New script Script to be run when an element is invalid
+reset             script Fires when the Reset button in a form is clicked
+                           Not supported in HTML5
+select            script Fires after some text has been selected in an element
+submit            script Fires when a form is submitted
+
+***** Keyboard Events *****
+
+keydown           script Fires when a user is pressing a key
+keypress          script Fires when a user presses a key
+keyup             script Fires when a user releases a key
+
+***** Mouse Events *****
+
+Events triggered by a mouse, or similar user actions:
+
+click             script Fires on a mouse click on the element
+dblclick          script Fires on a mouse double-click on the element
+drag          New script Script to be run when an element is dragged
+dragend       New script Script to be run at the end of a drag operation
+dragenter     New script Script to be run when an element has been dragged to a
+                           valid drop target
+dragleave     New script Script to be run when an element leaves a valid drop
+                           target
+dragover      New script Script to be run when an element is being dragged over
+                           a valid drop target
+dragstart     New script Script to be run at the start of a drag operation
+drop          New script Script to be run when dragged element is being dropped
+mousedown         script Fires when a mouse button is pressed down on an element
+mousemove         script Fires when the mouse pointer moves over an element
+mouseout          script Fires when the mouse pointer moves out of an element
+mouseover         script Fires when the mouse pointer moves over an element
+mouseup           script Fires when a mouse button is released over an element
+mousewheel    New script Script to be run when the mouse wheel is being rotated
+scroll        New script Script to be run when an element's scrollbar is being
+                             scrolled
+
+***** Media Events *****
+
+Events triggered by medias like videos, images and audio (applies to all HTML
+elements, but is most common in media elements, like <audio>, <embed>, <img>,
+<object>, and <video>):
+
+abort                 script Script to be run on abort
+canplay           New script Script to be run when a file is ready to start
+                               playing (when it has buffered enough to begin)
+canplaythrough    New script Script to be run when a file can be played all
+                               the way to the end without pausing for buffering
+durationchange    New script Script to be run when the length of the media
+                               changes
+emptied           New script Script to be run when something bad happens and
+                               the file is suddenly unavailable (like
+                               unexpectedly disconnects)
+ended             New script Script to be run when the media has reach the end
+                               (a useful event for messages like &quot;thanks
+                               for listening&quot;)
+error             New script Script to be run when an error occurs when the
+                               file is being loaded
+loadeddata        New script Script to be run when media data is loaded
+loadedmetadata    New script Script to be run when meta data (like dimensions
+                               and duration) are loaded
+loadstart         New script Script to be run just as the file begins to load
+                               before anything is actually loaded
+pause             New script Script to be run when the media is paused either
+                               by the user or programmatically
+play              New script Script to be run when the media is ready to start
+                               playing
+playing           New script Script to be run when the media actually has
+                               started playing
+progress          New script Script to be run when the browser is in the
+                               process of getting the media data
+ratechange        New script Script to be run each time the playback rate
+                               changes (like when a user switches to a slow
+                               motion or fast forward mode)
+readystatechange  New script Script to be run each time the ready state
+                               changes (the ready state tracks the state of the
+                               media data)
+seeked            New script Script to be run when the seeking attribute is
+                               set to false indicating that seeking has ended
+seeking           New script Script to be run when the seeking attribute is
+                               set to true indicating that seeking is active
+stalled           New script Script to be run when the browser is unable to
+                               fetch the media data for whatever reason
+suspend           New script Script to be run when fetching the media data is
+                               stopped before it is completely loaded for
+                               whatever reason
+timeupdate        New script Script to be run when the playing position has
+                               changed (like when the user fast forwards to a
+                               different point in the media)
+volumechange      New script Script to be run each time the volume is changed
+                               which (includes setting the volume to
+                               &quot;mute&quot;)
+waiting           New script Script to be run when the media has paused but is
+                               expected to resume (like when the media pauses to
+                               buffer more data)
