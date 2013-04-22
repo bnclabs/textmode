@@ -134,12 +134,6 @@ void do_nl(state *st);
 void do_nonl(state *st);
 void do_scrollok(state *st);
 
-void do_newwin(state *st);
-void do_delwin(state *st);
-void do_hline(state *st);
-void do_vline(state *st);
-void do_wborder(state *st);
-void do_box(state *st);
 
 //// Erlang Callbacks
 
@@ -528,7 +522,7 @@ void do_insnstr(state *st) {
   }
 }
 
-void do_wdeleteln(state *st) {
+void do_deleteln(state *st) {
   encode_ok_reply(st, deleteln());
 }
 

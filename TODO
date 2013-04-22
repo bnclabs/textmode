@@ -1,3 +1,8 @@
+* when `ncdrv` terminates, check the State for current document. Current
+  document must properly be unloaded before terminating.
+
+* Do proper shutdown of DOM nodes `ncnode`.
+
 * Interpret color attribute from xml file for box elements and containing
   text.
 
