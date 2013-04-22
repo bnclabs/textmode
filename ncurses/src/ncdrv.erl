@@ -11,8 +11,9 @@
 ]).
 
 % Module API
--export([start_link/1, mainbox/0, mainbox/1, doc/0, doc/1, loaddoc/1, loaddoc/2,
-         ncall/1, ncall/2, render/1, render/2, backdrop/1, backdrop/2
+-export([start_link/1, mainbox/0, mainbox/1, doc/0, doc/1, loaddoc/1, 
+         loaddoc/2, ncall/1, ncall/2, render/1, render/2, 
+         backdrop/1, backdrop/2
         ]).
 
 % NCurses API
@@ -110,23 +111,21 @@ doc() -> doc(?MODULE).
 doc(Ref) -> 
     gen_server:call(Ref, doc, infinity).
 
+render(Req) -> render(?MODULE, Req).
 render(Ref, {Buf}) -> render(Ref, {0, 0, Buf});
 render(Ref, {Y, Buf}) -> render(Ref, {Y, 0, Buf});
 render(Ref, Req) -> 
     gen_server:call(Ref, {render, Req}, infinity).
 
-render(Req) -> render(?MODULE, Req).
-
 
 loaddoc(Doc) -> loaddoc(?MODULE, Doc).
 loaddoc(Ref, Doc) ->
-    gen_server:call(Ref, {doc, Doc}, infinity).
+    gen_server:call(Ref, {loaddoc, Doc}, infinity).
 
-
-backdrop(Ref, Doc) ->
-    gen_server:call(Ref, {backdrop, Doc}, infinity).
 
 backdrop(Doc) -> backdrop(?MODULE, Doc).
+backdrop(Ref, Doc) ->
+    gen_server:call(Ref, {backdrop, Doc}, infinity).
 
 
 ncall(Ref, {Cmd}) -> ncall(Ref, {Cmd, undefined, infinity});
@@ -380,6 +379,7 @@ init({{local, Name}, _Args}) ->
             {Rows, Cols} = docall(Port, ?GETMAXYX),
             {ok, #screen{
                     ref={Name, node()},
+                    pid=self(),
                     port=Port, 
                     rows=Rows, 
                     cols=Cols }};
@@ -403,24 +403,44 @@ handle_call({render, Req}, _From, #screen{port=Port}=State) ->
     {reply, render_buf(Port, Req), State};
 
 handle_call({loaddoc, Doc}, _From, State) ->
-    {reply, Doc, load_doc(Doc, State)};
+    backdrop_doc(Doc, State),
+    load_doc(Doc, State),
+    {reply, Doc, State#screen{doc=Doc}};
 
-handle_call({backdrop, Doc}, _From, State) ->
-    {reply, doc_backdrop(Doc, State), State};
+handle_call({backdrop, Doc}, _From, State) ->   % TODO : Incomplete !!
+    {reply, backdrop_doc(Doc, State), State};
 
 handle_call({docall, Cmd, Args}, _From, #screen{port=Port}=State) ->
     {reply, docall(Port, Cmd, Args), State}.
 
 
+handle_info({'EXIT', From, Reason}, State) ->
+    utils:logexit(From, Reason, self()),
+    {noreply, State};
+
+handle_info({docfocus, XNode}, #screen{doc=Doc}=State) ->
+    case Doc#doc.focus of
+        XNode -> ok; % TODO onblur event
+        _ -> ok
+    end,
+    % TODO onfocus event
+    {noreply, State#screen{doc=Doc#doc{focus=XNode}}};
+
+handle_info({reply, {event, _Event}}, State) ->
+    {noreply, State};
 
 handle_info({_Port, {data, Binary}}, #screen{doc=Doc}=State) ->
     Ch = binary_to_term(Binary),
-    case Ch of
-        3 -> init:stop(0);
-        _ ->
+    case {Doc, Ch} of
+        {_, 3} -> shutdown(State);
+        {none, _} -> io:format("doc : ~p~n", [Ch]);
+        {_, _} ->
+            io:format("inp : ~p~n", [Ch]),
             case Doc#doc.focus of
-                none -> error_msg:info_msg("Input ~p~n", [Ch]);
-                #xnode{pid=Pid} -> Pid ! Ch
+                none -> io:format("Input ~p~n", [Ch]);
+                XNode ->
+                    Event = ?EV_KEYPRESS(#dommsg{screen=State, target=XNode}),
+                    ncchan:bubble(Doc, Event)
             end
     end,
     {noreply, State}.
@@ -431,12 +451,12 @@ handle_cast(_, State) ->
 
 
 terminate(Reason, State) ->
-    error_logger:info_msg("ncdrv terminating : ~p~n", [Reason]),
     docall(State#screen.port, ?ENDWIN),
     docall(State#screen.port, ?CURS_SET, ?CURS_NORMAL),
     erlang:port_close(State#screen.port),
     erl_ddll:unload("ncdrv"),
-    ok.
+    error_logger:info_msg("ncdrv terminating : ~p~n", [Reason]),
+    {noreply, State}.
 
 
 code_change(_, State, _) ->
@@ -456,25 +476,25 @@ render_buf(Port, {Y, X, [Line | Ls]}) ->
     render_buf(Port, {Y+1, X, Ls}),
     ok.
 
-load_doc(#doc{root=XRoot}=Doc, #screen{doc=none}=State) ->
-    doc_backdrop(Doc, State),
-    ncchan:propagate(XRoot, ?EV_LOAD),
-    State#screen{doc=Doc};
+load_doc(#doc{root=XRoot}, #screen{doc=OldDoc}=State) ->
+    unload_doc(OldDoc, State),
+    LEvent = ?EV_LOAD(#dommsg{screen=State, target=XRoot}),
+    ncchan:propagate(XRoot, LEvent).
 
-load_doc(#doc{root=XRoot}=Doc, #screen{doc=OldDoc}=State) ->
-    ncchan:propagate(OldDoc#doc.root, ?EV_UNLOAD),
-    doc_backdrop(Doc, State),
-    ncchan:propagate(XRoot, ?EV_LOAD),
-    State#screen{doc=Doc}.
+unload_doc(none, _) -> ok;
+unload_doc(#doc{root=XRoot}, State) ->
+    ULEvent = ?EV_UNLOAD(#dommsg{screen=State, target=XRoot}),
+    ncchan:propagate(XRoot, ULEvent).
 
-doc_backdrop(Doc, State) ->
-    RootTag = Doc#doc.root#xnode.tag,
+
+backdrop_doc(Doc, State) ->
     #screen{port=Port, rows=Rows, cols=Cols} = State,
+    RootTag = Doc#doc.root#xnode.tag,
     Buf = ncbuf:cornerize( 
                 ncbuf:frameborders(RootTag, ncbuf:init_block(Rows, Cols)),
                 Rows, Cols),
     render_buf(Port, {0, 0, tuple_to_list(Buf)}),
-    ok.
+    State.
 
 
 init_pairs(Port, true) -> init_pairs(Port, ?COLOR_PAIR_LIST);
@@ -486,7 +506,6 @@ init_pairs(Port, [{N, Fg, Bg} | CPairs]) ->
     init_pairs(Port, CPairs).
 
 
-
 load_driver() ->
     Dir = case code:priv_dir(ncurses) of
               {error, bad_name} ->
@@ -496,3 +515,7 @@ load_driver() ->
           end,
     erl_ddll:load(Dir, "ncdrv").
 
+
+shutdown(#screen{doc=Doc}=State) ->
+    unload_doc(Doc, State),
+    init:stop(0).

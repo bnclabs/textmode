@@ -2,7 +2,7 @@
 -author('prataprc@gmail.com').
 
 % Module API
--export([doc/3, parsexml/2, boxify/2, textof/2]).
+-export([xdoc/3, parsexml/2, boxify/2, textof/2, attr/2]).
 
 -include_lib("xmerl/include/xmerl.hrl").
 -include("ncurses.hrl").
@@ -10,9 +10,9 @@
 
 %---- Module API
 
-doc(XPort, DocPath, XmlFile) ->
+xdoc(XPort, DocPath, XmlFile) ->
     RootTag = boxify(XPort, parsexml(DocPath, XmlFile)),
-    {ok, _, XRoot} = ncnode:spawndom(RootTag),
+    XRoot = ncnode:xnode( ncnode:spawndom( RootTag )),
     #doc{docpath=DocPath, root=XRoot, focus=ncnode:getfocus(XRoot)}.
 
 

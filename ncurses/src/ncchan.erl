@@ -5,7 +5,7 @@
 % module API
 -export([start_link/1, new/1, subscribe/2, subscribe/3, subscribe/4,
          unsubscribe/2, publish/2, bubble/2, capture/2, propagate/2,
-         send_receive/2, reply/2, stop_propation/1, event/2, event/3]).
+         send_receive/2, reply/2, stop_event/1, finish_event/1]).
 
 % behaviour Callbacks
 -export([
@@ -35,17 +35,17 @@ subscribe(Chname, Mod, Fn, Args) ->
 unsubscribe(Chname, Ref) ->
     gen_server:call(?MODULE, {unsubscribe, Chname, Ref}, infinity).
 
-publish(Chname, Event) ->
-    gen_server:cast(?MODULE, {publish, Chname, Event}).
-
 bubble(Doc, Event) ->
-    gen_server:cast(?MODULE, {bubble, Doc, Event}).
+    gen_server:cast(?MODULE, {bubble, self(), Doc, Event}).
 
 capture(Doc, Event) ->
-    gen_server:cast(?MODULE, {capture, Doc, Event}).
+    gen_server:cast(?MODULE, {capture, self(), Doc, Event}).
 
 propagate(#xnode{}=XNode, Event) ->
-    gen_server:cast(?MODULE, {propagate, XNode, Event}).
+    gen_server:cast(?MODULE, {propagate, self(), XNode, Event}).
+
+publish(Chname, Event) ->
+    gen_server:cast(?MODULE, {publish, self(), Chname, Event}).
 
 send_receive(Proc, Msg) ->
     Proc ! {self(), Msg},
@@ -55,11 +55,10 @@ reply(From, Msg) ->
     From ! {reply, Msg}.
 
 
-stop_propation(Event) -> Event#event{stop=true}.
+stop_event(#event{}=Event) -> Event#event{status=stop}.
 
+finish_event(#event{}=Event) -> Event#event{status=finish}.
 
-event(Id, Msg) -> event(self(), Id, Msg).
-event(From, Id, Msg) -> #event{from=From, id=Id, msg=Msg}.
 
 %---- behaviour callbacks
 init(_Args) ->
@@ -91,29 +90,33 @@ handle_call({unsubscribe, Chname, Ref}, _From, State) ->
         NewState -> {reply, ok, NewState}
     end.
 
-handle_cast({publish, Chname, Event}, #evtsys{channels=Channels}=State) ->
-    #channel{subscribers=Subscrs} = lists:keyfind(Chname, 2, Channels),
-    chevent(Subscrs, Event),
+
+handle_cast({bubble, From, #doc{root=XRoot,focus=XNode}, Event}, State) ->
+    Ev = domevent( lists:reverse( ncnode:xpath( XNode, XRoot )), Event ),
+    reply(From, {event, Ev}),
     {noreply, State};
 
-handle_cast({bubble, #doc{root=XRoot, focus=XNode}, Event}, State) ->
-    domevent( lists:reverse( ncnode:xpath( XNode, XRoot )), Event ),
+handle_cast({capture, From, #doc{root=XRoot,focus=XNode}, Event}, State) ->
+    Ev = domevent( ncnode:xpath(XNode, XRoot), Event ),
+    reply(From, {event, Ev}),
     {noreply, State};
 
-handle_cast({capture, #doc{root=XRoot, focus=XNode}, Event}, State) ->
-    domevent( ncnode:xpath(XNode, XRoot), Event ),
-    {noreply, State};
-
-handle_cast({propagate, #xnode{}=XNode, Event}, State) ->
+handle_cast({propagate, From, #xnode{}=XNode, Event}, State) ->
     Fold = fun(Node, Acc) -> [Node | Acc] end,
     Children = fun(#xnode{cnodes=CNodes}) -> CNodes end,
     XNodes = lists:reverse( tree:preorder( XNode, Fold, Children, [] )),
-    domevent(XNodes, Event),
+    Ev = domevent(XNodes, Event),
+    reply(From, {event, Ev}),
+    {noreply, State};
+
+handle_cast({publish, From,Chname,Event}, #evtsys{channels=Channels}=State) ->
+    #channel{subscribers=Subscrs} = lists:keyfind(Chname, 2, Channels),
+    reply( From, {event, chevent(Subscrs, Event)}),
     {noreply, State}.
 
 
 handle_info({'EXIT', From, Reason}, State) ->
-    error_logger:info_msg("Process ~p exited because of ~p~n", [From, Reason]),
+    utils:logexit(From, Reason, self()),
     {noreply, State}.
 
 
@@ -121,8 +124,10 @@ code_change(_, State, _) ->
     {noreply, State}.
 
 
-terminate(_Reason, _State) ->
-    ok.
+terminate(Reason, State) ->
+    timer:sleep(1000),
+    error_logger:info_msg("ncchan terminating : ~p ~p~n", [Reason, State]),
+    {noreply, State}.
 
 
 %---- internal functions
@@ -147,8 +152,8 @@ remove_handler(Chname, Ref, #evtsys{channels=Channels}=State) ->
     end.
 
 
-chevent(_, _, #event{stop=true}=Event) -> Event;
-chevent([], _, Event) -> Event;
+chevent([], _, Event) -> finish_event(Event);
+chevent(_, _, #event{status=stop}=Event) -> Event;
 chevent([{_, M, F, Args} | Rest], Event, Opts) ->
     EArgs = Args ++ [Event],
     chevent(
@@ -173,7 +178,8 @@ chevent([{_, Proc} | Rest], Event, Opts) ->
 chevent(X, Event) -> chevent(X, Event, [asyn]).
 
 
-domevent(_, #event{stop=true}=Event) -> Event;
-domevent([#xnode{pid=Pid} | Rest], #event{stop=false}=Event) ->
+domevent([], Event) -> finish_event(Event);
+domevent(_, #event{status=stop}=Event) -> Event;
+domevent([#xnode{pid=Pid} | Rest], #event{status=go}=Event) ->
     domevent( Rest, send_receive( Pid, Event )).
 

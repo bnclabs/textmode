@@ -2,7 +2,7 @@
 -author('prataprc@gmail.com').
 
 % module API
--export([spawndom/1, getfocus/1, xpath/2, add_xdrv/2]).
+-export([spawndom/1, getfocus/1, xpath/2, xnode/1]).
 
 -export([init/1]).
 
@@ -11,9 +11,8 @@
 
 %---- module API
 spawndom(Tag) ->
-    Pid = erlang:spawn_link(?MODULE, init, Tag),
-    XNode = ncchan:send_receive(Pid, ?EV_XNODE),
-    {ok, Pid, XNode}.
+    Pid = erlang:spawn_link(?MODULE, init, [Tag]),
+    #xnode{pid=Pid}.
 
 getfocus([]) -> none;
 getfocus([#xnode{tag=Tag, cnodes=CNodes}=XNode | XNodes]) -> 
@@ -34,21 +33,8 @@ xpath(XNode, [#xnode{cnodes=CNodes}=N | Ns]) ->
 xpath(XNode, XRoot) -> xpath(XNode, [XRoot]).
 
 
-add_xdrv(Pid, #xnode{xpids=XPids, cnodes=CNodes}=XNode) ->
-    Fn = fun(A, B) -> 
-            ErlNode = node(),
-            case {node(A), node(B)} of
-                {ErlNode, ErlNode} -> true;
-                {ErlNode, _} -> true;
-                _ -> false
-            end
-         end,
-    NCRefs = lists:sort(Fn, [Pid | XPids]),
-    XNode#xnode{xpids=NCRefs, cnodes=add_xdrv(Pid, CNodes, [])}.
-
-add_xdrv(_, [], Acc) -> lists:reverse(Acc);
-add_xdrv(Pid, [CNode | CNodes], Acc) -> 
-    add_xdrv(Pid, CNodes, [add_xdrv(Pid, CNode) | Acc]).
+xnode(#xnode{pid=Pid}) -> xnode(Pid);
+xnode(Pid) -> ncchan:send_receive(Pid, ?EV_XNODE).
 
 
 %---- internal functions
@@ -56,46 +42,78 @@ init(Tag) ->
     process_flag(trap_exit, true),
     erlang:register(Tag#tag.name, self()),
     Mod = ncdom:attr(callback, Tag),
-    CNodes = spawndoms(Tag#tag.content),
+    CNodes = spawndoms(Tag#tag.content, []),
     error_logger:info_msg("ncnode ~p : ~p~n", [Tag#tag.name, self()]),
-    msgloop( #xnode{tag=Tag, pid=self(), mod=Mod, cnodes=CNodes} ).
+    State = #xnode{tag=Tag, pid=self(), mod=Mod, cnodes=CNodes},
+    {reply, _Evt, NewState} = handle(Tag#tag.tagname, ?EV_XCREATE, State),
+    msgloop(NewState). 
 
 
 spawndoms([], Acc) -> lists:reverse( Acc );
 spawndoms([#text{} | CTags], Acc) -> spawndoms(CTags, Acc);
 spawndoms([#tag{}=CTag | CTags], Acc) ->
-    {ok, _XPid, XNode} = ?MODULE:spawndom(CTag),
-    spawndoms(CTags, [XNode | Acc]).
-
-spawndoms(CTags) -> spawndoms(CTags, []).
+    spawndoms(CTags, [?MODULE:spawndom(CTag) | Acc]).
 
 
-msgloop(State) ->
+msgloop(#xnode{tag=Tag}=State) ->
+    #tag{tagname=Tagname, name=Name} = Tag,
+    receive
+        {'EXIT', _From, _Reason} ->
+            msgloop(State);
+        {From, ?EV_XDESTROY=Event} ->
+            {reply, OutEvent, NewState} = handle(Tagname, Event, State),
+            ncchan:reply(From, OutEvent),
+            utils:logexit(Name, Event),
+            NewState;
+        {From, ?EV_XNODE} ->
+            #xnode{cnodes=CNodes} = State,
+            NewState = State#xnode{cnodes=lists:map(fun xnode/1, CNodes)},
+            ncchan:reply(From, NewState),
+            msgloop(NewState);
+        {From, #event{}=Event} ->
+            case handle(Tagname, Event, State) of
+                {reply, ?EV_UNLOAD(_Msg)=OutEvent, NewState} ->
+                    ncchan:propagate(NewState, ?EV_XDESTROY),
+                    ncchan:reply(From, OutEvent),
+                    msgloop(NewState);
+                {reply, OutEvent, NewState} ->
+                    ncchan:reply(From, OutEvent),
+                    msgloop(NewState)
+            end 
+    end.
+
+
+%-- 
+handle(box, Event, State) -> 
+    {Event1, NewState1} = handle(Event, State),
+    {Event2, NewState2} = xbox:handle(Event1, NewState1),
+    {reply, Event2, NewState2}.
+
+
+handle(?EV_LOAD(Msg)=Event, State) -> 
+    #xnode{xpids=XPids} = State,
+    Pid = Msg#dommsg.screen#screen.pid,
     NewState =
-        receive
-            {From, shutdown} -> % Incomplete !!
-                From ! State;
-            {From, #event{}=Event} ->
-                case handle(Event, State) of
-                    {reply, Reply, S} -> ncchan:reply(From, Reply), S
-                end
+        case lists:member(Pid, XPids) of
+            true -> State;
+            false ->
+                State#xnode{xpids=lists:sort(fun sort_xpids/2, [Pid | XPids])}
         end,
-    msgloop(NewState).
+    {ncchan:stop_event(Event), NewState};
+
+handle(?EV_UNLOAD(Msg)=Event, State) -> 
+    #xnode{xpids=XPids} = State,
+    { ncchan:stop_event(Event),
+      State#xnode{xpids=lists:delete(Msg#dommsg.screen#screen.pid, XPids)}
+    };
+
+handle(Event, State) -> {Event, State}.
 
 
-
-%-- event handlers
-handle(?EV_XNODE=_Event, State) ->
-    {reply, State, State};
-
-handle(?EV_LOAD=IEvent, #xnode{mod=Mod, state=XState}=State) ->
-    {OEvent, NodeState1} = erlang:apply(Mod, onload, [IEvent, XState]),
-    {reply, OEvent, State#xnode{state=NodeState1}};
-
-handle(?EV_UNLOAD=IEvent, #xnode{mod=Mod, state=XState}=State) ->
-    NodeState1 = erlang:apply(Mod, onunload, [IEvent, XState]),
-    {reply, ok, State#xnode{state=NodeState1}};
-
-handle(?EV_KEYPRESS()=IEvent, #xnode{mod=Mod, state=XState}=State) ->
-    NodeState1 = erlang:apply(Mod, onkeypress, [IEvent, XState]),
-    {reply, ok, State#xnode{state=NodeState1}}.
+sort_xpids(A, B) ->
+    ErlNode = node(),
+    case {node(A), node(B)} of
+        {ErlNode, ErlNode} -> true;
+        {ErlNode, _} -> true;
+        _ -> false
+    end.

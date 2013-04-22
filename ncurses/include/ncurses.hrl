@@ -222,6 +222,7 @@
 % NCurses screen state
 -record( screen, {
             ref,        % reference to curses driver. constant
+            pid,        % process id for this curses driver. constant
             port,       % ncurses port driver. constant
             rows,       % ncurses no of rows. varies on resize.
             cols,       % ncurses no of cols. varies on resize.
@@ -255,20 +256,24 @@
          }).
 
 -record( event, {
-            from,       % Indentifying sender.
             id,         % Unique identification of the event.
             msg,        % event payload, `evmsg` record.
-            stop=false  % stop chaining this event.
+            status=go   % stop chaining this event.
          }).
 
--record( domev, {
-            xnode       % xnode record which was originally targeted.
+-record( dommsg, {
+            screen,     % `screen` record from which the event came.
+            target      % `xnode` record that originally received event.
          }).
 
--define(EV_XNODE,       #event{id={tm, xnode}}).
--define(EV_LOAD,        #event{id={dom, load}}).
--define(EV_UNLOAD,      #event{id={dom, unload}}).
--define(EV_KEYPRESS(),  #event{id={dom, keypress}}).
+-define(EV_XNODE,           #event{id={tm, xnode}}).
+-define(EV_XCREATE,         #event{id={tm, create}}).
+-define(EV_XDESTROY,        #event{id={tm, destroy}}).
+-define(EV_LOAD(Msg),       #event{id={dom, load}, msg=Msg}).
+-define(EV_UNLOAD(Msg),     #event{id={dom, unload}, msg=Msg}).
+-define(EV_KEYPRESS(Msg),   #event{id={dom, keypress}, msg=Msg}).
+
+-define(EV_DOM(Screen, Target), #dommsg{screen=Screen, target=Target}).
 
 % events,
 %
