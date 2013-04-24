@@ -1,0 +1,13 @@
+#!/bin/bash
+
+CONFIGDIR=$HOME/.textmode
+mkdir -p $CONFIGDIR/logs
+mkdir -p $CONFIGDIR/snake
+
+erl -noinput -smp disable \
+    -sasl sasl_error_logger "{file, \"$CONFIGDIR/logs/snake.log\"}" \
+    -kernel error_logger "{file, \"$CONFIGDIR/logs/textmode.log\"}" \
+    -boot start_sasl \
+    -s snake ncstart
+
+#vim :filetype=shell:

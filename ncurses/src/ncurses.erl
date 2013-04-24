@@ -3,6 +3,9 @@
 -behaviour(application).
 -behaviour(supervisor).
 
+% module APIs
+-export([cpanel/0]).
+
 % application behaviour callbacks
 -export([ start/2, prep_stop/1, stop/1, config_change/3 ]).
 
@@ -38,6 +41,28 @@ init(_) ->
         ok         -> {ok, Specs};
         {error, _} -> ignore
     end.
+
+%---- module APIs.
+
+cpanel() ->
+    application:start(ncurses),
+    Result = 
+        try index() 
+        catch
+                throw:Term -> Term;
+                exit:Reason -> {'EXIT',Reason};
+                error:Reason -> {'EXIT',{Reason,erlang:get_stacktrace()}}
+        end,
+    %error_logger:info_msg("Result .... ~p~n", [Result]),
+    Result.
+
+index() ->
+    XmlFile = filename:join([code:priv_dir(ncurses), "cpanel.xml"]),
+    XPort = ncdrv:mainbox(),
+    DocPath = ncpath:docpath(node(), sudoku, XmlFile),
+    Doc = ncdom:xdoc(XPort, DocPath, XmlFile),
+    ncdrv:loaddoc(Doc).
+
 
 %---- module local functions.
 

@@ -435,7 +435,6 @@ handle_info({_Port, {data, Binary}}, #screen{doc=Doc}=State) ->
         {_, 3} -> shutdown(State);
         {none, _} -> io:format("doc : ~p~n", [Ch]);
         {_, _} ->
-            io:format("inp : ~p~n", [Ch]),
             case Doc#doc.focus of
                 none -> io:format("Input ~p~n", [Ch]);
                 XNode ->

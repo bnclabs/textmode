@@ -13,6 +13,7 @@
 xdoc(XPort, DocPath, XmlFile) ->
     RootTag = boxify(XPort, parsexml(DocPath, XmlFile)),
     XRoot = ncnode:xnode( ncnode:spawndom( RootTag )),
+    error_logger:info_msg("~p", [RootTag]),
     #doc{docpath=DocPath, root=XRoot, focus=ncnode:getfocus(XRoot)}.
 
 
@@ -101,6 +102,22 @@ xmlcontent(DocPath, [#xmlElement{}=E | Cs], Acc) ->
 
 
 %-- calculate box dimension
+box(ViewPort, {Mt, Mr, Mb, Ml}, {Y, X, Rows, Cols}) when Rows < 0 ->
+    #view{rows=VRows} = ViewPort,
+    box(ViewPort, {Mt, Mr, Mb, Ml}, {Y, X, VRows+Rows, Cols});
+
+box(ViewPort, {Mt, Mr, Mb, Ml}, {Y, X, Rows, Cols}) when Cols < 0 ->
+    #view{cols=VCols} = ViewPort,
+    box(ViewPort, {Mt, Mr, Mb, Ml}, {Y, X, Rows, VCols+Cols});
+
+box(ViewPort, {Mt, Mr, Mb, Ml}, {Y, X, Rows, Cols}) when Y < 0 ->
+    #view{y=Vy, rows=VRows} = ViewPort,
+    box(ViewPort, {Mt, Mr, Mb, Ml}, {Vy+VRows+Y, X, Rows, Cols});
+
+box(ViewPort, {Mt, Mr, Mb, Ml}, {Y, X, Rows, Cols}) when X < 0 ->
+    #view{x=Vx, cols=VCols} = ViewPort,
+    box(ViewPort, {Mt, Mr, Mb, Ml}, {Y, Vx+VCols+X, Rows, Cols});
+
 box(ViewPort, {Mt, Mr, Mb, Ml}, {Y, X, Rows, Cols}) ->
     #view{y=Vy, x=Vx, rows=VRows, cols=VCols} = ViewPort,
     {ok, Top, BRows} =

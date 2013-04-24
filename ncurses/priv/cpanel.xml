@@ -1,0 +1,4 @@
+<box id="root">
+    <box id="view" rows="-1" focus="default"></box>
+    <box id="statuscmd" y="-1" rows="1"></box>
+</box>
