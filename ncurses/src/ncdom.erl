@@ -139,22 +139,22 @@ borderize({Bt, Br, Bb, Bl}, Box) ->
                borderto(bottom, Bb, Box), borderto(left, Bl, Box)},
     Box#box{border=Border}.
 
-borderto(top, {none, none, none, none}, _) -> {none, none, none, none};
+borderto(top, {none, none, none}, _) -> none;
 borderto(top, {0, _, _}, _) -> none;
 borderto(top, {1, Char, Color}, #box{y=Y, x=X, cols=Cols})->
     {Y, X, Cols, Char, Color};
 
-borderto(right, {none, none, none, none}, _) -> {none, none, none, none};
+borderto(right, {none, none, none}, _) -> none;
 borderto(right, {0, _, _}, _) -> none;
 borderto(right, {1, Char, Color}, #box{y=Y, x=X, rows=Rows, cols=Cols})->
     {Y, X+Cols-1, Rows, Char, Color};
 
-borderto(bottom, {none, none, none, none}, _) -> {none, none, none, none};
+borderto(bottom, {none, none, none}, _) -> none;
 borderto(bottom, {0, _, _}, _) -> none;
 borderto(bottom, {1, Char, Color}, #box{y=Y, x=X, rows=Rows, cols=Cols})->
     {Y+Rows-1, X+Cols-1, Cols, Char, Color};
 
-borderto(left, {none, none, none, none}, _) -> {none, none, none, none};
+borderto(left, {none, none, none}, _) -> none;
 borderto(left, {0, _, _}, _) -> none;
 borderto(left, {1, Char, Color}, #box{y=Y, x=X, rows=Rows})->
     {Y+Rows-1, X, Rows, Char, Color}.
@@ -168,17 +168,18 @@ viewborder(#box{y=Y, x=X, rows=Rows, cols=Cols, border=Border}) ->
     {Vy, Vx, Vrows, Vcols} = viewbt(tuple_to_list(Border), {Y,X,Rows,Cols}),
     #view{y=Vy, x=Vx, rows=Vrows, cols=Vcols}.
 
+
 viewbt([none | Ls], {Y, X, Rs, Cs}) -> viewbr(Ls, {Y, X, Rs, Cs});
-viewbt([_ | Ls], {Y, X, Rs, Cs}) -> viewbr(Ls, {Y+1, X, Rs-1, Cs}).
+viewbt([{N, _, _} | Ls], {Y, X, Rs, Cs}) -> viewbr(Ls, {Y+N, X, Rs-N, Cs}).
 
 viewbr([none | Ls], {Y, X, Rs, Cs}) -> viewbb(Ls, {Y, X, Rs, Cs});
-viewbr([_ | Ls], {Y, X, Rs, Cs}) -> viewbb(Ls, {Y, X, Rs, Cs-1}).
+viewbr([{N, _, _} | Ls], {Y, X, Rs, Cs}) -> viewbb(Ls, {Y, X, Rs, Cs-N}).
 
-viewbb( [none | Ls], {Y, X, Rs, Cs}) -> viewbl(Ls, {Y, X, Rs, Cs});
-viewbb( [_ | Ls], {Y, X, Rs, Cs}) -> viewbl(Ls, {Y, X, Rs-1, Cs}).
+viewbb([none | Ls], {Y, X, Rs, Cs}) -> viewbl(Ls, {Y, X, Rs, Cs});
+viewbb([{N, _, _} | Ls], {Y, X, Rs, Cs}) -> viewbl(Ls, {Y, X, Rs-N, Cs}).
 
 viewbl([none | []], {Y, X, Rs, Cs}) -> {Y, X, Rs, Cs};
-viewbl([_ | []], {Y, X, Rs, Cs}) -> {Y, X+1, Rs, Cs-1}.
+viewbl([{N, _, _} | []], {Y, X, Rs, Cs}) -> {Y, X+N, Rs, Cs-N}.
 
 
 viewpadding(#view{rows=Vrows, cols=Vcols}=View, Padding) ->
@@ -238,7 +239,7 @@ marginto([X | Ls], Acc) -> marginto(Ls, [list_to_integer(X) | Acc]).
 
 
 border(Tag) ->
-    B = borderattr(border, Tag, {none, none, none, none}),
+    B = borderattr(border, Tag, {none, none, none}),
     X = {'border-top', 'border-right', 'border-bottom', 'border-left'},
     Border = {B, B, B, B},
     Fn = fun(I,Br) -> setelement(I, Br, borderattr(element(I,X), Tag, B)) end,

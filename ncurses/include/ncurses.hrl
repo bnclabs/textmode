@@ -85,7 +85,7 @@
 -define(COLOR_WBl,   61).
 -define(COLOR_WM,    62).
 -define(COLOR_WC,    63).
--define(CH(Attr, Color, Char), (Attr bor Color bor Char)).
+-define(CH(Attr, Color, Char), (Char)).
 
 -define(COLOR_PAIR(C), (C bsl 8)).
 
