@@ -15,3 +15,6 @@ compile-sudoku :
 
 compile-snake :
 	@cd snake; ./rebar compile;
+
+push-github:
+	git push git@github.com:prataprc/textmode.git
